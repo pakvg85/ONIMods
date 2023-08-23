@@ -10,25 +10,24 @@ namespace ExtendedBuildingWidth
     {
         public static void Postfix(List<Type> types)
         {
-            Type typeFromHandle = typeof(IBuildingConfig);
-            var extendableTypes = new List<Type>(types.Where(type =>
-                    typeFromHandle.IsAssignableFrom(type)
-                    && !type.IsAbstract
-                    && !type.IsInterface
-                    && DynamicBuildingsManager.CouldTypeBeDynamicallyExtended(type.Name)
-                    ).ToList()
+            var configTable = DynamicBuildingsManager.GetBuildingConfigManager_ConfigTable();
+            var configNameToInstanceMapping = new Dictionary<string, IBuildingConfig>();
+            configTable.Keys.ToList().ForEach(
+                    config => configNameToInstanceMapping.Add(config.GetType().FullName, config)
                 );
 
-            foreach (var type in extendableTypes)
+            var configsToBeExtended = ModSettings.GetExtendableConfigSettingsList();
+
+            foreach (var configSettingsItem in configsToBeExtended)
             {
                 try
                 {
-                    var config = DynamicBuildingsManager.GetConfigByName(type.Name);
-                    DynamicBuildingsManager.RegisterDynamicBuildings(config);
+                    var config = configNameToInstanceMapping[configSettingsItem.ConfigName];
+                    DynamicBuildingsManager.RegisterDynamicBuildings(config, configSettingsItem.MinWidth, configSettingsItem.MaxWidth, configSettingsItem.AnimStretchModifier);
                 }
                 catch (Exception e)
                 {
-                    DebugUtil.LogException(null, "Exception in Postfix RegisterBuilding for type " + type.FullName + " from " + type.Assembly.GetName().Name, e);
+                    DebugUtil.LogException(null, "Exception in Postfix RegisterBuilding for type " + configSettingsItem.ConfigName, e);
                 }
             }
         }

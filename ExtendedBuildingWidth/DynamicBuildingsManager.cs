@@ -1,34 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections;
 using HarmonyLib;
 
 namespace ExtendedBuildingWidth
 {
     public static class DynamicBuildingsManager
     {
-        public struct WidthRange { public int Min; public int Max; }
-
-        private static Dictionary<IBuildingConfig, BuildingDef> _configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
-        private static Dictionary<string, IBuildingConfig> configNameToObjectMap = new Dictionary<string, IBuildingConfig>();
-        private static Dictionary<IBuildingConfig, WidthRange> configsToBeDynamicallyExtended = new Dictionary<IBuildingConfig, WidthRange>();
-        private static Dictionary<BuildingDef, BuildingDef> dynamicDefToOriginalDefMap = new Dictionary<BuildingDef, BuildingDef>();
-        private static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> originalDefToDynamicDefAndWidthMap = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
-
-        static DynamicBuildingsManager()
-        {
-            var configList = new List<IBuildingConfig>(_configTable.Keys);
-            foreach(var config in configList)
-            {
-                configNameToObjectMap.Add(config.ToString(), config);
-            }
-
-            /// TODO - make it editable via 'Options' menu?
-            configsToBeDynamicallyExtended.Add(GetConfigByName("GasConduitBridgeConfig"), new WidthRange { Min = ModSettings.Instance.MinWidth, Max = ModSettings.Instance.MaxWidth });
-            configsToBeDynamicallyExtended.Add(GetConfigByName("LiquidConduitBridgeConfig"), new WidthRange { Min = ModSettings.Instance.MinWidth, Max = ModSettings.Instance.MaxWidth });
-        }
-
-        public static void RegisterDynamicBuildings(IBuildingConfig config)
+        public static void RegisterDynamicBuildings(IBuildingConfig config, int minWidth, int maxWidth, float animStretchModifier)
         {
             if (!DlcManager.IsDlcListValidForCurrentContent(config.GetDlcIds()))
             {
@@ -36,28 +14,26 @@ namespace ExtendedBuildingWidth
             }
 
             var originalDef = GetBuildingDefByConfig(config);
-            var widthRange = GetWidthRange(config);
-            for (var width = widthRange.Min; width <= widthRange.Max; width++)
+            for (var width = minWidth; width <= maxWidth; width++)
             {
-                var delta = width - originalDef.WidthInCells;
-                if (delta != 0)
+                if (width != originalDef.WidthInCells)
                 {
-                    var dynamicDef = RegisterDynamicBuilding(config, delta);
+                    var dynamicDef = RegisterDynamicBuilding(config, width, originalDef.WidthInCells, animStretchModifier);
                     AddMapping(dynamicDef, originalDef);
                 }
             }
-            // Add the original 'BuildingDef' so it could also be picked when switching between building widths.
+            // Add the original 'BuildingDef' so it could also be picked when switching between widths via ALT+X and ALT+C.
             AddMapping(originalDef, originalDef);
         }
 
         /// <summary>
         /// This method is ripped from standard 'BuildingConfigManager.RegisterBuilding', few adjustments are made to create dynamic 'BuildingDef' entities.
         /// </summary>
-        private static BuildingDef RegisterDynamicBuilding(IBuildingConfig config, int widthDelta)
+        private static BuildingDef RegisterDynamicBuilding(IBuildingConfig config, int width, int originalWidth, float animStretchModifier)
         {
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
-            Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = widthDelta;
+            Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = width - originalWidth;
             BuildingDef dynamicDef = config.CreateBuildingDef();
             Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = 0;
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
@@ -104,22 +80,22 @@ namespace ExtendedBuildingWidth
             // ---
             // 'Building' game objects for dynamically created BuildingDefs have to be stretched explicitly.
             // ---
-            float originalWidthInCells = originalDef.WidthInCells;
-            float widthInCells = dynamicDef.WidthInCells;
-            StretchBuildingGameObject(dynamicDef, dynamicDef.BuildingUnderConstruction, widthInCells, originalWidthInCells);
-            StretchBuildingGameObject(dynamicDef, dynamicDef.BuildingPreview, widthInCells, originalWidthInCells);
-            StretchBuildingGameObject(dynamicDef, dynamicDef.BuildingComplete, widthInCells, originalWidthInCells);
+            StretchBuildingGameObject(dynamicDef.BuildingUnderConstruction, width, originalWidth, animStretchModifier);
+            StretchBuildingGameObject(dynamicDef.BuildingPreview, width, originalWidth, animStretchModifier);
+            StretchBuildingGameObject(dynamicDef.BuildingComplete, width, originalWidth, animStretchModifier);
 
             return dynamicDef;
         }
 
-        private static void StretchBuildingGameObject(BuildingDef buildingDef, UnityEngine.GameObject gameObject, float widthInCells, float originalWidthInCells)
+        public static void StretchBuildingGameObject(UnityEngine.GameObject gameObject, int width, int originalWidth, float animStretchModifier)
         {
             try
             {
                 var buildingGameObject = gameObject.GetComponent<Building>().gameObject;
                 var animController = buildingGameObject.GetComponent<KBatchedAnimController>();
-                animController.animWidth = widthInCells / originalWidthInCells;
+                // Just stretching animController width for a building does not look fine (because for example dynamic bridges get progressively
+                // more narrow), so it should be adjusted with modifier. For gas bridge this modifier is '1.12f'
+                animController.animWidth = (float)width / (float)originalWidth * animStretchModifier;
             }
             catch (Exception e)
             {
@@ -148,7 +124,7 @@ namespace ExtendedBuildingWidth
             var origDescEntry = Strings.Get(origDescID);
             var origEffectEntry = Strings.Get(origEffectID);
 
-            Strings.Add(nameID, origNameEntry);
+            Strings.Add(nameID, origNameEntry + " (width " + dynamicDef.WidthInCells + ")");
             Strings.Add(descID, origDescEntry);
             Strings.Add(effectID, origEffectEntry);
         }
@@ -173,94 +149,70 @@ namespace ExtendedBuildingWidth
             originalDefToDynamicDefAndWidthMap[originalDef][dynamicDef.WidthInCells] = dynamicDef;
         }
 
-        public static void SwitchToPrevWidth(BuildingDef currentlySelectedDef)
+        public static bool SwitchToPrevWidth(BuildingDef currentlySelectedDef)
         {
             var originalDef = GetOriginalDefByDynamicDef(currentlySelectedDef);
-
-            BuildingDef shiftedDef = null;
-            if (currentlySelectedDef.WidthInCells - 1 >= ModSettings.Instance.MinWidth)
+            if (!HasDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells - 1))
             {
-                shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells - 1);
+                return false;
             }
-            else
-            {
-                // Lower limit for width range is reached. Roll back to the max width.
-                shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, ModSettings.Instance.MaxWidth);
-            }
+            var shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells - 1);
 
-            SetActiveBuildingDef(shiftedDef, originalDef);
+            SetActiveBuildingDef(shiftedDef);
+            return true;
         }
 
-        public static void SwitchToNextWidth(BuildingDef currentlySelectedDef)
+        public static bool SwitchToNextWidth(BuildingDef currentlySelectedDef)
         {
             var originalDef = GetOriginalDefByDynamicDef(currentlySelectedDef);
-
-            BuildingDef shiftedDef = null;
-            if (currentlySelectedDef.WidthInCells + 1 <= ModSettings.Instance.MaxWidth)
+            if (!HasDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells + 1))
             {
-                shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells + 1);
+                return false;
             }
-            else
-            {
-                // Upper limit for width range is reached. Roll back to the min width.
-                shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, ModSettings.Instance.MinWidth);
-            }
+            var shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells + 1);
 
-            SetActiveBuildingDef(shiftedDef, originalDef);
+            SetActiveBuildingDef(shiftedDef);
+            return true;
         }
 
         /// <summary>
-        /// There are few approaches to replace current BuildingDef with dynamic BuildingDef. None is perfect.
+        /// Standard buildings are bound to buttons in build menu, so when such button is pressed, method 'PlanScreen.OnSelectBuilding' is triggered.
+        /// Dynamic buildings are not bound to buttons, so some workaround should be done to visualize particular dynamic building.
         /// </summary>
-        public static void SetActiveBuildingDef(BuildingDef shiftedDef, BuildingDef originalDef)
+        public static void SetActiveBuildingDef(BuildingDef dynamicDef)
         {
-            int algorithmToProceed = 1;
+            var currentOrientation = (Orientation)(Traverse.Create(BuildTool.Instance).Field("buildingOrientation").GetValue() as object);
 
-            switch (algorithmToProceed)
-            {
-                // Variant 1. Reset current 'def' value of 'BuildTool' and 'PrebuildTool'.
-                // + The white siluette of enlarged building that is already placed but not yet built (is it BuildingUnderConstruction? or Preview?)
-                //   and the final building (BuildingComplete) are displayed correctly, have correct width, and could be saved and loaded.
-                // - The white siluette of enlarged building that is not yet placed (moves when mouse is moving) is not correctly displayed - its width
-                //   equals oridinal BuildingDef's width.
-                // - Button 'CopyLastBuilding' does not work
-                case 1: 
-                    Traverse.Create(BuildTool.Instance).Field("def").SetValue(shiftedDef);
-                    Traverse.Create(PrebuildTool.Instance).Field("def").SetValue(shiftedDef);
-                    PlanScreen.Instance.ProductInfoScreen.currentDef = shiftedDef;
-                    //var lastSelectedBuilding = shiftedDef.BuildingComplete.GetComponent<Building>();
-                    //Traverse.Create(PlanScreen.Instance).Field("LastSelectedBuilding").SetValue(lastSelectedBuilding);
-                    //PlanScreen.Instance.RefreshCopyBuildingButton(null);
-                    break;
+            PlanScreen_OnSelectBuilding_HugeRipoff(dynamicDef);
 
-                // Variant 2. Simulate 'OnSelectBuilding' with some parts thrown out.
-                // - Does not work.
-                case 2: 
-                    PlanScreen_OnSelectBuilding_Ripoff(shiftedDef);
-                    break;
-
-                // Variant 3. Call the original 'OnSelectBuilding' with some workarounds.
-                // - Does not work.
-                case 3: 
-                    // 'SelectedBuildingGameObject' should be set to null to avoid early exiting from the method (this field will be reset inside the method 'OnSelectBuilding').
-                    var selectedBuildingGameObject = Traverse.Create(PlanScreen.Instance).Property("SelectedBuildingGameObject").GetValue() as UnityEngine.GameObject;
-                    Traverse.Create(PlanScreen.Instance).Property("SelectedBuildingGameObject").SetValue(null);
-                    // 'Tag' should be set to original 'Tag' because of some coding inside 'OnSelectBuilding'.
-                    var shiftedDefTagSave = shiftedDef.Tag;
-                    shiftedDef.Tag = originalDef.Tag;
-                    ////var shiftedDefPrefabIDSave = shiftedDef.PrefabID;
-                    ////shiftedDef.PrefabID = originalDef.PrefabID;
-                    PlanScreen.Instance.OnSelectBuilding(selectedBuildingGameObject, shiftedDef, null);
-                    ////shiftedDef.PrefabID = shiftedDefPrefabIDSave;
-                    shiftedDef.Tag = shiftedDefTagSave;
-                    break;
-
-                default:
-                    break;
-            }
+            BuildTool.Instance.SetToolOrientation(currentOrientation);
         }
 
-        public static void PlanScreen_OnSelectBuilding_Ripoff(BuildingDef def, string facadeID = null)
+        /// <summary>
+        /// + The white siluette of enlarged building that is already placed but not yet built (is it BuildingUnderConstruction? or Preview?)
+        ///   and the final building (BuildingComplete) are displayed correctly (have correct width), and could be saved and loaded.
+        /// + The white siluette of enlarged building that is not yet placed (moves when mouse is moving) is also displayed correctly.
+        /// + Hovering text card over the dynamic building shows correct required resources
+        /// - Button 'CopyLastBuilding' does not work for enlarged buildings. Enlarged building is replaced with its original in 'Patch_PlanScreen_OnClickCopyBuilding'
+        /// - Material selection screen does not show correct amount of materials for enlarged buildings. It could be probably
+        ///   fixed via correct call of 'PlanScreen.Instance.ProductInfoScreen.ConfigureScreen', but for now it causes exception deep inside
+        /// </summary>
+        public static void PlanScreen_OnSelectBuilding_HugeRipoff(BuildingDef dynamicDef)
+        {
+            Traverse.Create(PrebuildTool.Instance).Field("def").SetValue(dynamicDef);
+
+            BuildTool.Instance.Activate(dynamicDef,
+                PlanScreen.Instance.ProductInfoScreen.materialSelectionPanel.GetSelectedElementAsList,
+                PlanScreen.Instance.ProductInfoScreen.FacadeSelectionPanel.SelectedFacade);
+
+            var building = dynamicDef.BuildingComplete.GetComponent<Building>();
+            Traverse.Create(PlanScreen.Instance).Property("LastSelectedBuilding").SetValue(building);
+        }
+
+        /// <summary>
+        /// Simulate 'OnSelectBuilding' with some parts thrown out. Does not work
+        /// </summary>
+        public static void PlanScreen_OnSelectBuilding_Ripoff(BuildingDef dynamicDef, string facadeID = null)
         {
             var currentlySelectedToggle = Traverse.Create(PlanScreen.Instance).Field("currentlySelectedToggle").GetValue() as KToggle;
             PlanBuildingToggle planBuildingToggle = null;
@@ -277,36 +229,48 @@ namespace ExtendedBuildingWidth
 
             ToolMenu.Instance.ClearSelection();
 
-            PrebuildTool.Instance.Activate(def, PlanScreen.Instance.GetTooltipForBuildable(def));
-            ////PrebuildTool.Instance.Activate(def, "waaaaaagh");
+            PrebuildTool.Instance.Activate(dynamicDef, PlanScreen.Instance.GetTooltipForBuildable(dynamicDef));
 
-            var lastSelectedBuilding = def.BuildingComplete.GetComponent<Building>();
+            var lastSelectedBuilding = dynamicDef.BuildingComplete.GetComponent<Building>();
             Traverse.Create(PlanScreen.Instance).Field("LastSelectedBuilding").SetValue(lastSelectedBuilding);
             PlanScreen.Instance.RefreshCopyBuildingButton(null);
 
             PlanScreen.Instance.ProductInfoScreen.Show(true);
-            PlanScreen.Instance.ProductInfoScreen.ConfigureScreen(def, facadeID);
+            PlanScreen.Instance.ProductInfoScreen.ConfigureScreen(dynamicDef, facadeID);
         }
 
-        // public static bool CouldTypeBeDynamicallyExtended(string typeName) => configNameToObjectMap.ContainsKey(typeName) && configsToBeDynamicallyExtended.ContainsKey(GetConfigByName(typeName));
-        public static bool CouldTypeBeDynamicallyExtended(string typeName)
+        /// <summary>
+        /// Call the original 'OnSelectBuilding' with minimuum workarounds. Does not work
+        /// </summary>
+        public static void PlanScreen_OnSelectBuilding(BuildingDef dynamicDef)
         {
-            if (!configNameToObjectMap.ContainsKey(typeName))
-            {
-                return false;
-            }
+            var originalDef = GetOriginalDefByDynamicDef(dynamicDef);
 
-            var config = GetConfigByName(typeName);
-            return configsToBeDynamicallyExtended.ContainsKey(config);
+            // 'SelectedBuildingGameObject' should be set to null to avoid early exiting from the method (this field will be reset inside the method 'OnSelectBuilding').
+            var selectedBuildingGameObject = Traverse.Create(PlanScreen.Instance).Property("SelectedBuildingGameObject").GetValue() as UnityEngine.GameObject;
+            Traverse.Create(PlanScreen.Instance).Property("SelectedBuildingGameObject").SetValue(null);
+            // 'Tag' should be set to original 'Tag' because of some coding inside 'OnSelectBuilding'.
+            var dynamicDefTagSave = dynamicDef.Tag;
+            dynamicDef.Tag = originalDef.Tag;
+            // Dynamic 'PrefabID' value could also cause exceptions because dynamic buildings are not attached to buttons in main build menu.
+            ////var dynamicDefPrefabIDSave = dynamicDef.PrefabID;
+            ////dynamicDef.PrefabID = originalDef.PrefabID;
+            PlanScreen.Instance.OnSelectBuilding(selectedBuildingGameObject, dynamicDef, null);
+            ////dynamicDef.PrefabID = dynamicDefPrefabIDSave;
+            dynamicDef.Tag = dynamicDefTagSave;
         }
 
+        public static Dictionary<IBuildingConfig, BuildingDef> GetBuildingConfigManager_ConfigTable() => _configTable;
         public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => originalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
         public static bool IsDynamicallyCreated(BuildingDef buildingDef) => dynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (dynamicDefToOriginalDefMap[buildingDef] != buildingDef);
-        public static IBuildingConfig GetConfigByName(string configName) => configNameToObjectMap[configName];
-        public static WidthRange GetWidthRange(IBuildingConfig config) => configsToBeDynamicallyExtended[config];
         public static BuildingDef GetBuildingDefByConfig(IBuildingConfig config) => _configTable[config];
         public static BuildingDef GetOriginalDefByDynamicDef(BuildingDef dynamicDef) => dynamicDefToOriginalDefMap[dynamicDef];
         public static BuildingDef GetDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => originalDefToDynamicDefAndWidthMap[originalDef][defWidth];
+        public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
+
+        private static Dictionary<IBuildingConfig, BuildingDef> _configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
+        private static Dictionary<BuildingDef, BuildingDef> dynamicDefToOriginalDefMap = new Dictionary<BuildingDef, BuildingDef>();
+        private static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> originalDefToDynamicDefAndWidthMap = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
     }
 
 }
