@@ -39,11 +39,11 @@ namespace ExtendedBuildingWidth
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
 
             // Utility Offset fields should be overwritten because they are generated independently in 'IBuildingConfig.CreateBuildingDef' implementations.
-            ChangeUtilityOffsets(dynamicDef);
+            AdjustUtilityOffsets(dynamicDef);
 
             var originalDef = GetBuildingDefByConfig(config);
             // 'Strings' entities are copied from the original
-            ChangeStrings(dynamicDef, originalDef);
+            AdjustStrings(dynamicDef, originalDef);
 
             // ---
             // This big chunk of code is more or less similair to the rest of original 'BuildingConfigManager.RegisterBuilding'.
@@ -70,10 +70,12 @@ namespace ExtendedBuildingWidth
             dynamicDef.BuildingPreview.name += "Preview";
 
             dynamicDef.PostProcess();
-            config.DoPostConfigureComplete(dynamicDef.BuildingComplete);
 
+            config.DoPostConfigureComplete(dynamicDef.BuildingComplete);
             config.DoPostConfigurePreview(dynamicDef, dynamicDef.BuildingPreview);
             config.DoPostConfigureUnderConstruction(dynamicDef.BuildingUnderConstruction);
+
+            AdjustLogicPortOffsets(dynamicDef);
 
             Assets.AddBuildingDef(dynamicDef);
 
@@ -104,13 +106,79 @@ namespace ExtendedBuildingWidth
             }
         }
 
-        private static void ChangeUtilityOffsets(BuildingDef buildingDef)
+        /// <summary>
+        /// Extending logic port offsets (supposedly for logic bridges).
+        /// </summary>
+        private static void AdjustLogicPortOffsets(BuildingDef buildingDef)
         {
-            buildingDef.UtilityInputOffset.x = -(buildingDef.WidthInCells - 1) / 2;
-            buildingDef.UtilityOutputOffset.x = (buildingDef.WidthInCells) / 2;
+            if (buildingDef.LogicInputPorts == null || buildingDef.LogicInputPorts.Count == 0)
+            {
+                return;
+            }
+
+            // Vertical Utility Ports does not do a thing, so no need to change them.
+            //////buildingDef.UtilityInputOffset.y = AdjustLogicPortOffset(buildingDef.UtilityInputOffset.y - 1, buildingDef.WidthInCells) + 1;
+            //////buildingDef.UtilityOutputOffset.y = AdjustLogicPortOffset(buildingDef.UtilityOutputOffset.y - 1, buildingDef.WidthInCells) + 1;
+
+            // Changing contents of 'LogicInputPorts' does not seem to change anything.
+            //////buildingDef.LogicInputPorts.Clear();
+            //////buildingDef.LogicInputPorts.Add(LogicPorts.Port.InputPort(LogicWireBridgeConfig.BRIDGE_LOGIC_IO_ID, new CellOffset(AdjustOffsetValueByWidth(-1, buildingDef.WidthInCells), 0), STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_ACTIVE, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_INACTIVE, false, false));
+            //////buildingDef.LogicInputPorts.Add(LogicPorts.Port.InputPort(LogicWireBridgeConfig.BRIDGE_LOGIC_IO_ID, new CellOffset(AdjustOffsetValueByWidth(1, buildingDef.WidthInCells), 0), STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_ACTIVE, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_INACTIVE, false, false));
+
+            // Also I tried to change already existing contents of 'LogicInputPorts' but failed.
+            // Accessing the struct value via 'List[i]' will return a copy of struct, and futher changing this copy will not affect the original.
+            // I tried to use iterator, but was not managed to get a reference correctly because of "Cannot modify the result of unboxing convention" error.
+            //////IEnumerator enumerator = buildingDef.LogicInputPorts.GetEnumerator();
+            //////while (enumerator.MoveNext())
+            //////{
+            //////    ref LogicPorts.Port portRef = ref ((LogicPorts.Port)(enumerator.Current));
+            //////    ChangeLogicPortOffset(buildingDef, ref portRef.cellOffset);
+            //////}
+
+            if (buildingDef.BuildingComplete.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingComplete))
+            {
+                AdjustLogicPortOffset(ref networkLinkBuildingComplete.link1, buildingDef.WidthInCells);
+                AdjustLogicPortOffset(ref networkLinkBuildingComplete.link2, buildingDef.WidthInCells);
+            }
+            if (buildingDef.BuildingUnderConstruction.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingUnderConstruction))
+            {
+                AdjustLogicPortOffset(ref networkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
+                AdjustLogicPortOffset(ref networkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+            }
+            if (buildingDef.BuildingPreview.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingPreview))
+            {
+                AdjustLogicPortOffset(ref networkLinkBuildingPreview.link1, buildingDef.WidthInCells);
+                AdjustLogicPortOffset(ref networkLinkBuildingPreview.link2, buildingDef.WidthInCells);
+            }
         }
 
-        private static void ChangeStrings(BuildingDef dynamicDef, BuildingDef originalDef)
+        /// <summary>
+        /// Accessing struct CellOffset without 'ref' modifier will result in passing the parameter by value and not changing the original.
+        /// </summary>
+        public static void AdjustLogicPortOffset(ref CellOffset portCellOffset, int width)
+        {
+            portCellOffset.x = AdjustOffsetValueByWidth(portCellOffset.x, width);
+        }
+
+        /// <summary>
+        /// Default bridge utility offsets are '(-1;0),(1;0)'. When a bridge is extended, the offsets should also be adjusted.
+        /// For example, offsets for width 4 should be '(-1;0),(2;0)', for width 5: '(-2;0),(2;0)', for width 6: '(-2;0),(3;0)' etc.
+        /// Notice that integer division operation will round the results, so "1/2 = 0", "2/2 = 1", "3/2 = 1", "4/2 = 2", "5/2 = 2" etc.
+        /// </summary>
+        private static void AdjustUtilityOffsets(BuildingDef buildingDef)
+        {
+            buildingDef.UtilityInputOffset.x = AdjustOffsetValueByWidth(buildingDef.UtilityInputOffset.x, buildingDef.WidthInCells);
+            buildingDef.UtilityOutputOffset.x = AdjustOffsetValueByWidth(buildingDef.UtilityOutputOffset.x, buildingDef.WidthInCells);
+        }
+
+        /// <summary>
+        /// If an utility or logic port default offset value (X) equals -1, then we suggest that this port have to be placed to the left side.
+        /// If that value equals +1 - then this port have to be placed to the right side.
+        /// If it equals 0 - then it should not be adjusted and kept as it is.
+        /// </summary>
+        private static int AdjustOffsetValueByWidth(int defaultOffsetValue, int width) => (defaultOffsetValue < 0) ? -(width - 1) / 2 : (defaultOffsetValue > 0) ? (width) / 2 : 0;
+
+        private static void AdjustStrings(BuildingDef dynamicDef, BuildingDef originalDef)
         {
             var nameID = "STRINGS.BUILDINGS.PREFABS." + dynamicDef.PrefabID.ToUpper() + ".NAME";
             var descID = "STRINGS.BUILDINGS.PREFABS." + dynamicDef.PrefabID.ToUpper() + ".DESC";
