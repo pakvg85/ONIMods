@@ -22,9 +22,14 @@ namespace ExtendedBuildingWidth
         [JsonProperty]
         public string ExtendableConfigSettings { get; set; }
 
+        /// <summary>
+        /// The constructor is called inside getter method 'Instance.get' of 'SingletonOptions' in both cases:
+        /// 1) if 'config.json' is read via 'POptions.ReadSettings' (in this case the constructor results are overwritten)
+        /// 2) if 'config.json' is not read, and new 'Instance' is created via 'Activator.CreateInstance'
+        /// </summary>
         public ModSettings()
         {
-            ExtendableConfigSettings = JsonConvert.SerializeObject(GenerateExtendableConfigSettingsList());
+            ExtendableConfigSettings = JsonConvert.SerializeObject(GenerateDefaultValues_For_ExtendableConfigSettings());
         }
 
         public static List<ExtendableConfigSettings> GetExtendableConfigSettingsList()
@@ -33,7 +38,7 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
-        private static List<ExtendableConfigSettings> GenerateExtendableConfigSettingsList()
+        private static List<ExtendableConfigSettings> GenerateDefaultValues_For_ExtendableConfigSettings()
         {
             List<Type> list = new List<Type>();
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();

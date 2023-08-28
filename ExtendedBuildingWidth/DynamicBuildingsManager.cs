@@ -1,12 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using HarmonyLib;
 
 namespace ExtendedBuildingWidth
 {
     public static class DynamicBuildingsManager
     {
-        public static void RegisterDynamicBuildings(IBuildingConfig config, int minWidth, int maxWidth, float animStretchModifier)
+        public static void RegisterDynamicBuildings_For_ExtendableConfigSettings()
+        {
+            var configTable = GetBuildingConfigManager_ConfigTable();
+            var configNameToInstanceMapping = new Dictionary<string, IBuildingConfig>();
+            configTable.Keys.ToList().ForEach(
+                    cfg => configNameToInstanceMapping.Add(cfg.GetType().FullName, cfg)
+                );
+
+            IBuildingConfig config = null;
+            var configsToBeExtended = ModSettings.GetExtendableConfigSettingsList();
+            foreach (var configSettingsItem in configsToBeExtended)
+            {
+                try
+                {
+                    config = configNameToInstanceMapping[configSettingsItem.ConfigName];
+                }
+                catch (Exception e)
+                {
+                    config = null;
+                    Debug.Log("ExtendedBuildingWidth ERROR - Exception while loading config " + configSettingsItem.ConfigName);
+                    Debug.Log(e.Message);
+
+                    continue;
+                }
+
+                try
+                {
+                    RegisterDynamicBuildings(config, configSettingsItem.MinWidth, configSettingsItem.MaxWidth, configSettingsItem.AnimStretchModifier);
+                }
+                catch (Exception e)
+                {
+                    Debug.Log("ExtendedBuildingWidth ERROR - Exception while register buildings for config " + configSettingsItem.ConfigName);
+                    Debug.Log(e.Message);
+                }
+            }
+        }
+
+        private static void RegisterDynamicBuildings(IBuildingConfig config, int minWidth, int maxWidth, float animStretchModifier)
         {
             if (!DlcManager.IsDlcListValidForCurrentContent(config.GetDlcIds()))
             {
@@ -101,7 +139,7 @@ namespace ExtendedBuildingWidth
             }
             catch (Exception e)
             {
-                Debug.Log("ExtendedBuildingWidth - stretching failed for " + gameObject.name + " because:");
+                Debug.Log("ExtendedBuildingWidth ERROR - stretching failed for " + gameObject.name + " because:");
                 Debug.Log(e.Message);
             }
         }
