@@ -17,6 +17,7 @@ namespace ExtendedBuildingWidth
 
     [JsonObject(MemberSerialization.OptIn)]
     [RestartRequired]
+    [ConfigFileAttribute(SharedConfigLocation:true)]
     public class ModSettings : SingletonOptions<ModSettings>
     {
         [JsonProperty]
