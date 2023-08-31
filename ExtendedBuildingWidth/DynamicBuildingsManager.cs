@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -77,7 +78,7 @@ namespace ExtendedBuildingWidth
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
 
             // Utility Offset fields should be overwritten because they are generated independently in 'IBuildingConfig.CreateBuildingDef' implementations.
-            AdjustUtilityOffsets(dynamicDef);
+            AdjustUtilityPortsOffsets(dynamicDef);
 
             var originalDef = GetBuildingDefByConfig(config);
             // 'Strings' entities are copied from the original
@@ -113,7 +114,8 @@ namespace ExtendedBuildingWidth
             config.DoPostConfigurePreview(dynamicDef, dynamicDef.BuildingPreview);
             config.DoPostConfigureUnderConstruction(dynamicDef.BuildingUnderConstruction);
 
-            AdjustLogicPortOffsets(dynamicDef);
+            AdjustLogicPortsOffsets(dynamicDef);
+            AdjustPowerPortsOffsets(dynamicDef);
 
             Assets.AddBuildingDef(dynamicDef);
 
@@ -147,53 +149,79 @@ namespace ExtendedBuildingWidth
         /// <summary>
         /// Extending logic port offsets (supposedly for logic bridges).
         /// </summary>
-        private static void AdjustLogicPortOffsets(BuildingDef buildingDef)
+        private static void AdjustLogicPortsOffsets(BuildingDef buildingDef)
         {
             if (buildingDef.LogicInputPorts == null || buildingDef.LogicInputPorts.Count == 0)
             {
                 return;
             }
 
-            // Vertical Utility Ports does not do a thing, so no need to change them.
-            //////buildingDef.UtilityInputOffset.y = AdjustLogicPortOffset(buildingDef.UtilityInputOffset.y - 1, buildingDef.WidthInCells) + 1;
-            //////buildingDef.UtilityOutputOffset.y = AdjustLogicPortOffset(buildingDef.UtilityOutputOffset.y - 1, buildingDef.WidthInCells) + 1;
-
-            // Changing contents of 'LogicInputPorts' does not seem to change anything.
-            //////buildingDef.LogicInputPorts.Clear();
-            //////buildingDef.LogicInputPorts.Add(LogicPorts.Port.InputPort(LogicWireBridgeConfig.BRIDGE_LOGIC_IO_ID, new CellOffset(AdjustOffsetValueByWidth(-1, buildingDef.WidthInCells), 0), STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_ACTIVE, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_INACTIVE, false, false));
-            //////buildingDef.LogicInputPorts.Add(LogicPorts.Port.InputPort(LogicWireBridgeConfig.BRIDGE_LOGIC_IO_ID, new CellOffset(AdjustOffsetValueByWidth(1, buildingDef.WidthInCells), 0), STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_ACTIVE, STRINGS.BUILDINGS.PREFABS.LOGICWIREBRIDGE.LOGIC_PORT_INACTIVE, false, false));
-
-            // Also I tried to change already existing contents of 'LogicInputPorts' but failed.
-            // Accessing the struct value via 'List[i]' will return a copy of struct, and futher changing this copy will not affect the original.
-            // I tried to use iterator, but was not managed to get a reference correctly because of "Cannot modify the result of unboxing convention" error.
-            //////IEnumerator enumerator = buildingDef.LogicInputPorts.GetEnumerator();
-            //////while (enumerator.MoveNext())
-            //////{
-            //////    ref LogicPorts.Port portRef = ref ((LogicPorts.Port)(enumerator.Current));
-            //////    ChangeLogicPortOffset(buildingDef, ref portRef.cellOffset);
-            //////}
-
-            if (buildingDef.BuildingComplete.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingComplete))
+            var newLogicPorts = new List<LogicPorts.Port>();
+            foreach(var port in buildingDef.LogicInputPorts)
             {
-                AdjustLogicPortOffset(ref networkLinkBuildingComplete.link1, buildingDef.WidthInCells);
-                AdjustLogicPortOffset(ref networkLinkBuildingComplete.link2, buildingDef.WidthInCells);
+                var newPort = port;
+                AdjustPortOffset(ref newPort.cellOffset, buildingDef.WidthInCells);
+                newLogicPorts.Add(newPort);
             }
-            if (buildingDef.BuildingUnderConstruction.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingUnderConstruction))
+            buildingDef.LogicInputPorts.Clear();
+            buildingDef.LogicInputPorts.AddRange(newLogicPorts.ToArray());
+
+            ReInitializeLogicPorts(buildingDef.BuildingComplete, buildingDef);
+            ReInitializeLogicPorts(buildingDef.BuildingPreview, buildingDef);
+            ReInitializeLogicPorts(buildingDef.BuildingUnderConstruction, buildingDef);
+
+            if (buildingDef.BuildingComplete.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingComplete))
             {
-                AdjustLogicPortOffset(ref networkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
-                AdjustLogicPortOffset(ref networkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingComplete.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingComplete.link2, buildingDef.WidthInCells);
             }
-            if (buildingDef.BuildingPreview.TryGetComponent<LogicUtilityNetworkLink>(out var networkLinkBuildingPreview))
+            if (buildingDef.BuildingUnderConstruction.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingUnderConstruction))
             {
-                AdjustLogicPortOffset(ref networkLinkBuildingPreview.link1, buildingDef.WidthInCells);
-                AdjustLogicPortOffset(ref networkLinkBuildingPreview.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+            }
+            if (buildingDef.BuildingPreview.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingPreview))
+            {
+                AdjustPortOffset(ref logicNetworkLinkBuildingPreview.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingPreview.link2, buildingDef.WidthInCells);
+            }
+        }
+
+        private static void ReInitializeLogicPorts(UnityEngine.GameObject gameObject, BuildingDef buildingDef)
+        {
+            if (buildingDef.LogicInputPorts != null)
+            {
+                gameObject.AddOrGet<LogicPorts>().inputPortInfo = buildingDef.LogicInputPorts.ToArray();
+            }
+            if (buildingDef.LogicOutputPorts != null)
+            {
+                gameObject.AddOrGet<LogicPorts>().outputPortInfo = buildingDef.LogicOutputPorts.ToArray();
+            }
+        }
+
+        private static void AdjustPowerPortsOffsets(BuildingDef buildingDef)
+        {
+            if (buildingDef.BuildingComplete.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingComplete))
+            {
+                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link2, buildingDef.WidthInCells);
+            }
+            if (buildingDef.BuildingUnderConstruction.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingUnderConstruction))
+            {
+                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+            }
+            if (buildingDef.BuildingPreview.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingPreview))
+            {
+                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link2, buildingDef.WidthInCells);
             }
         }
 
         /// <summary>
         /// Accessing struct CellOffset without 'ref' modifier will result in passing the parameter by value and not changing the original.
         /// </summary>
-        public static void AdjustLogicPortOffset(ref CellOffset portCellOffset, int width)
+        public static void AdjustPortOffset(ref CellOffset portCellOffset, int width)
         {
             portCellOffset.x = AdjustOffsetValueByWidth(portCellOffset.x, width);
         }
@@ -203,10 +231,10 @@ namespace ExtendedBuildingWidth
         /// For example, offsets for width 4 should be '(-1;0),(2;0)', for width 5: '(-2;0),(2;0)', for width 6: '(-2;0),(3;0)' etc.
         /// Notice that integer division operation will round the results, so "1/2 = 0", "2/2 = 1", "3/2 = 1", "4/2 = 2", "5/2 = 2" etc.
         /// </summary>
-        private static void AdjustUtilityOffsets(BuildingDef buildingDef)
+        private static void AdjustUtilityPortsOffsets(BuildingDef buildingDef)
         {
-            buildingDef.UtilityInputOffset.x = AdjustOffsetValueByWidth(buildingDef.UtilityInputOffset.x, buildingDef.WidthInCells);
-            buildingDef.UtilityOutputOffset.x = AdjustOffsetValueByWidth(buildingDef.UtilityOutputOffset.x, buildingDef.WidthInCells);
+            AdjustPortOffset(ref buildingDef.UtilityInputOffset, buildingDef.WidthInCells);
+            AdjustPortOffset(ref buildingDef.UtilityOutputOffset, buildingDef.WidthInCells);
         }
 
         /// <summary>
