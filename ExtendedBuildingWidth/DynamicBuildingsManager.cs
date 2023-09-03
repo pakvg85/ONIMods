@@ -12,9 +12,17 @@ namespace ExtendedBuildingWidth
         {
             var configTable = GetBuildingConfigManager_ConfigTable();
             var configNameToInstanceMapping = new Dictionary<string, IBuildingConfig>();
-            configTable.Keys.ToList().ForEach(
-                    cfg => configNameToInstanceMapping.Add(cfg.GetType().FullName, cfg)
-                );
+            foreach (var cfg in configTable.Keys.ToList())
+            {
+                try
+                {
+                    configNameToInstanceMapping.Add(cfg.GetType().FullName, cfg);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("ExtendedBuildingWidth WARNING - " + e.Message);
+                }
+            }
 
             IBuildingConfig config = null;
             var configsToBeExtended = ModSettings.GetExtendableConfigSettingsList();
