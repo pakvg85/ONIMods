@@ -45,10 +45,17 @@ namespace ExtendedBuildingWidth
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
             for (int i = 0; i < assemblies.Length; i++)
             {
-                Type[] types = assemblies[i].GetTypes();
-                if (types != null)
+                try
                 {
-                    list.AddRange(types);
+                    Type[] types = assemblies[i].GetTypes();
+                    if (types != null)
+                    {
+                        list.AddRange(types);
+                    }
+                }
+                catch (Exception)
+                {
+                    Debug.Log("ExtendedBuildingWidth ERROR - unable to get types from assembly " + assemblies[i].FullName);
                 }
             }
 
