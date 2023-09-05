@@ -81,7 +81,9 @@ namespace ExtendedBuildingWidth
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
             Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = width - originalWidth;
+            Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = true;
             BuildingDef dynamicDef = config.CreateBuildingDef();
+            Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = false;
             Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = 0;
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
 

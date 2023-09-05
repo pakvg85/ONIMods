@@ -16,6 +16,7 @@ namespace ExtendedBuildingWidth
                 int originalWidth = width;
                 width += WidthDeltaForDynamicBuildingDef;
                 id += "_width" + width.ToString();
+                Patch_GeneratedBuildings_RegisterWithOverlay.DynamicallyGeneratedPrefabId = id;
 
                 // Adjust building mass.
                 // In 'GasConduitBridgeConfig' field 'float[] tier' is assigned via reference from 'BUILDINGS.CONSTRUCTION_MASS_KG.TIER1'
