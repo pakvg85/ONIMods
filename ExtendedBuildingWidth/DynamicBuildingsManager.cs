@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using HarmonyLib;
 
 namespace ExtendedBuildingWidth
@@ -51,6 +52,8 @@ namespace ExtendedBuildingWidth
                     Debug.Log(e.Message);
                 }
             }
+
+            ApplyCompabilityWith_HighPressureApplications();
         }
 
         private static void RegisterDynamicBuildings(IBuildingConfig config, int minWidth, int maxWidth, float animStretchModifier)
@@ -71,6 +74,106 @@ namespace ExtendedBuildingWidth
             }
             // Add the original 'BuildingDef' so it could also be picked when switching between widths via ALT+X and ALT+C.
             AddMapping(originalDef, originalDef);
+        }
+
+        /// <summary>
+        /// Bridges of 'High_Pressure_Applications' have higher capacity of its 'Conduit' and 'ConduitBridge' objects.
+        /// To apply that higher capacity values to the newly created High_Pressure_Applications bridges,
+        /// we have to add some values to 'PressurizedTuning.PressurizedLookup' dictionary of 'High_Pressure_Applications' lib.
+        /// To do so, we must call method 'PressurizedTuning.TryAddPressurizedInfo' to all the newly created dynamic PrefabID.
+        /// </summary>
+        private static void ApplyCompabilityWith_HighPressureApplications()
+        {
+            try
+            {
+                Debug.Log("ExtendedBuildingWidth - applying compability with 'High_Pressure_Applications'");
+
+                Type dynamicType_PressurizedTuning = null;
+
+                Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                for (int i = 0; i < assemblies.Length; i++)
+                {
+                    dynamicType_PressurizedTuning = assemblies[i].GetTypes().Where(x =>
+                        x.Namespace == "High_Pressure_Applications"
+                        && x.Name.Contains("PressurizedTuning")
+                        ).FirstOrDefault();
+
+                    if (dynamicType_PressurizedTuning != null)
+                    {
+                        break;
+                    }
+                }
+                if (dynamicType_PressurizedTuning is null)
+                {
+                    return;
+                }
+
+                var dynamicMethod_GetPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("GetPressurizedInfo");
+                var dynamicMethod_TryAddPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("TryAddPressurizedInfo");
+
+                foreach(var originalDef in originalDefToDynamicDefAndWidthMap.Keys)
+                {
+                    bool methodTryAddPressurizedInfo_WasSuccessfullyCalledAtLeastOnce = false;
+
+                    foreach (var keyValuePair in originalDefToDynamicDefAndWidthMap[originalDef])
+                    {
+                        var dynamicDef = keyValuePair.Value;
+
+                        if (dynamicDef.PrefabID == originalDef.PrefabID)
+                        {
+                            continue;
+                        }
+
+                        var parameters = new List<object>();
+                        parameters.Add(originalDef.PrefabID);
+                        var dynamicObject_PressurizedInfo = dynamicMethod_GetPressurizedInfo.Invoke(dynamicType_PressurizedTuning, parameters.ToArray());
+                        if (dynamicObject_PressurizedInfo is null)
+                        {
+                            return;
+                        }
+
+                        var resultType = dynamicObject_PressurizedInfo.GetType();
+                        if (resultType is null)
+                        {
+                            return;
+                        }
+
+                        var dynamicProperty_IsDefault = resultType.GetField("IsDefault");
+                        var dynamicProperty_Capacity = resultType.GetField("Capacity");
+                        if (dynamicProperty_IsDefault is null || dynamicProperty_Capacity is null)
+                        {
+                            continue;
+                        }
+
+                        var dynamicProperty_IsDefault_Value = dynamicProperty_IsDefault.GetValue(dynamicObject_PressurizedInfo);
+                        var dynamicProperty_Capacity_Value = dynamicProperty_Capacity.GetValue(dynamicObject_PressurizedInfo);
+                        if (dynamicProperty_IsDefault_Value is null || dynamicProperty_Capacity_Value is null)
+                        {
+                            continue;
+                        }
+
+                        var boolIsDefault = (bool)dynamicProperty_IsDefault_Value;
+                        if (!boolIsDefault)
+                        {
+                            var parameters2 = new List<object>();
+                            parameters2.Add(dynamicDef.PrefabID);
+                            parameters2.Add(dynamicObject_PressurizedInfo);
+                            dynamicMethod_TryAddPressurizedInfo.Invoke(dynamicType_PressurizedTuning, parameters2.ToArray());
+                            methodTryAddPressurizedInfo_WasSuccessfullyCalledAtLeastOnce = true;
+                        }
+                    }
+
+                    if (methodTryAddPressurizedInfo_WasSuccessfullyCalledAtLeastOnce)
+                    {
+                        Debug.Log("ExtendedBuildingWidth - 'PressurizedTuning.PressurizedLookup' successfully extended for '" + originalDef.PrefabID + "'");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Log("ExtendedBuildingWidth ERROR - failed to apply compability with 'High_Pressure_Applications'");
+                Debug.Log(ex.ToString());
+            }
         }
 
         /// <summary>
