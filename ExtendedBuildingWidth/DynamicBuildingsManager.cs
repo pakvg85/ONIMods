@@ -26,7 +26,7 @@ namespace ExtendedBuildingWidth
             }
 
             IBuildingConfig config = null;
-            var configsToBeExtended = ModSettings.GetExtendableConfigSettingsList();
+            var configsToBeExtended = ModSettings.Instance.GetExtendableConfigSettingsList();
             foreach (var configSettingsItem in configsToBeExtended)
             {
                 try

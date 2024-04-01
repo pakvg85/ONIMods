@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DynamicBuildingsManager.cs" />
+    <Compile Include="ExtendableConfigSettings.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="ModSettings.cs" />
     <Compile Include="Patch_BuildingTemplates.cs" />
@@ -82,6 +83,7 @@
     <Compile Include="Patch_GeneratedBuildings.cs" />
     <Compile Include="Patch_PlanScreen.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SettingsManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
