@@ -183,11 +183,11 @@ namespace ExtendedBuildingWidth
         {
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
-            Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = width - originalWidth;
+            Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = width;
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = true;
             BuildingDef dynamicDef = config.CreateBuildingDef();
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = false;
-            Patch_BuildingTemplates_CreateBuildingDef.WidthDeltaForDynamicBuildingDef = 0;
+            Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = 0;
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
 
             // Utility Offset fields should be overwritten because they are generated independently in 'IBuildingConfig.CreateBuildingDef' implementations.
@@ -229,6 +229,7 @@ namespace ExtendedBuildingWidth
 
             AdjustLogicPortsOffsets(dynamicDef);
             AdjustPowerPortsOffsets(dynamicDef);
+            AdjustTravelPortsOffsets(dynamicDef);
 
             Assets.AddBuildingDef(dynamicDef);
 
@@ -314,20 +315,51 @@ namespace ExtendedBuildingWidth
 
         private static void AdjustPowerPortsOffsets(BuildingDef buildingDef)
         {
+            var width = buildingDef.WidthInCells;
+            if (buildingDef.IsFoundation)
+            {
+                width = buildingDef.WidthInCells + 2;
+            }
+
             if (buildingDef.BuildingComplete.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingComplete))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link1, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link2, width);
             }
             if (buildingDef.BuildingUnderConstruction.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingUnderConstruction))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link1, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link2, width);
             }
             if (buildingDef.BuildingPreview.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingPreview))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link2, width);
+            }
+        }
+
+        private static void AdjustTravelPortsOffsets(BuildingDef buildingDef)
+        {
+            var width = buildingDef.WidthInCells;
+            if (buildingDef.IsFoundation)
+            {
+                width = buildingDef.WidthInCells + 2;
+            }
+
+            if (buildingDef.BuildingComplete.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingComplete))
+            {
+                AdjustPortOffset(ref travelNetworkLinkBuildingComplete.link1, width);
+                AdjustPortOffset(ref travelNetworkLinkBuildingComplete.link2, width);
+            }
+            if (buildingDef.BuildingUnderConstruction.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingUnderConstruction))
+            {
+                AdjustPortOffset(ref travelNetworkLinkBuildingUnderConstruction.link1, width);
+                AdjustPortOffset(ref travelNetworkLinkBuildingUnderConstruction.link2, width);
+            }
+            if (buildingDef.BuildingPreview.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingPreview))
+            {
+                AdjustPortOffset(ref travelNetworkLinkBuildingPreview.link1, width);
+                AdjustPortOffset(ref travelNetworkLinkBuildingPreview.link2, width);
             }
         }
 
@@ -355,7 +387,7 @@ namespace ExtendedBuildingWidth
         /// If that value equals +1 - then this port have to be placed to the right side.
         /// If it equals 0 - then it should not be adjusted and kept as it is.
         /// </summary>
-        private static int AdjustOffsetValueByWidth(int defaultOffsetValue, int width) => (defaultOffsetValue < 0) ? -(width - 1) / 2 : (defaultOffsetValue > 0) ? (width) / 2 : 0;
+        public static int AdjustOffsetValueByWidth(int defaultOffsetValue, int width) => (defaultOffsetValue < 0) ? -(width - 1) / 2 : (defaultOffsetValue > 0) ? (width) / 2 : 0;
 
         private static void AdjustStrings(BuildingDef dynamicDef, BuildingDef originalDef)
         {

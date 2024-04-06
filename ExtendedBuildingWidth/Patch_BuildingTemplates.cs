@@ -6,7 +6,7 @@ namespace ExtendedBuildingWidth
     public class Patch_BuildingTemplates_CreateBuildingDef
     {
         public static bool CreatingDynamicBuildingDefStarted = false;
-        public static int WidthDeltaForDynamicBuildingDef = 0;
+        public static int NewWidthForDynamicBuildingDef = 0;
 
         public static void Prefix(ref string id, ref int width, ref float[] construction_mass, out float[] __state)
         {
@@ -14,7 +14,7 @@ namespace ExtendedBuildingWidth
             if (CreatingDynamicBuildingDefStarted)
             {
                 int originalWidth = width;
-                width += WidthDeltaForDynamicBuildingDef;
+                width = NewWidthForDynamicBuildingDef;
                 id += "_width" + width.ToString();
                 Patch_GeneratedBuildings_RegisterWithOverlay.DynamicallyGeneratedPrefabId = id;
 
@@ -42,7 +42,6 @@ namespace ExtendedBuildingWidth
             {
                 construction_mass = __state;
 
-                WidthDeltaForDynamicBuildingDef = 0;
                 CreatingDynamicBuildingDefStarted = false;
             }
         }
