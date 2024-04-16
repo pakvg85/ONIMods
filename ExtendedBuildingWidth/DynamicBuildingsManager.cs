@@ -25,7 +25,7 @@ namespace ExtendedBuildingWidth
                 }
             }
 
-            var dummyModSettings = POptions.ReadSettings<ModSettings>();
+            var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
 
             IBuildingConfig config = null;
