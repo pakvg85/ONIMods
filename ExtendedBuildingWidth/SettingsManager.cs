@@ -12,8 +12,31 @@ namespace ExtendedBuildingWidth
 {
     public class SettingsManager
     {
+        public class BuildingDescription
+        {
+            public string TechName { get; set; }
+            public string Caption { get; set; }
+            public string Desc { get; set; }
+        }
+
         public const string AllAvailableBuildings_FileName = "AllAvailableBuildings.txt";
         public const string SourceFileForConfigJson_FileName = "SourceFileForConfigJson.txt";
+        public const int DefaultMinWidth = 2;
+        public const int DefaultMaxWidth = 16;
+        public const float DefaultAnimStretchModifier = 1.12f;
+
+        public static List<BuildingDescription> ListOfAllBuildings
+        {
+            get
+            {
+                if (_listOfAllBuildings == null)
+                {
+                    _listOfAllBuildings = GetListOfAllBuildings();
+                }
+                return _listOfAllBuildings;
+            }
+        }
+        private static List<BuildingDescription> _listOfAllBuildings;
 
         public static string Get_ConfigJson_Path() => Path.GetDirectoryName(POptions.GetConfigFilePath(typeof(ModSettings)));
         public static string Get_ConfigJson_FullFileName() => POptions.GetConfigFilePath(typeof(ModSettings));
@@ -22,111 +45,16 @@ namespace ExtendedBuildingWidth
         public static string Get_DebugLog_FullFileName() => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\AppData\LocalLow\Klei\Oxygen Not Included\Player.log";
         public static string Get_DebugLog_Path() => Path.GetDirectoryName(Get_DebugLog_FullFileName());
 
-        public static void CreateSourceTextFile_From_ConfigJson(object obj)
+        private readonly ModSettings _modSettings;
+
+        public SettingsManager(ModSettings modSettings_Instance)
         {
-            try
-            {
-                string configJson_FullFileName = Get_ConfigJson_FullFileName();
-                if (!File.Exists(configJson_FullFileName))
-                {
-                    POptions.WriteSettings(ModSettings.Instance);
-                }
-
-                ModSettings local = POptions.ReadSettings<ModSettings>();
-                var rez = local.GetExtendableConfigSettingsList();
-                ModSettings.Instance.SetExtendableConfigSettings(local.GetExtendableConfigSettingsList());
-
-                string sourceText_FullFileName = Get_SourceFileForConfigJson_FullFileName();
-                if (File.Exists(sourceText_FullFileName))
-                {
-                    File.Delete(sourceText_FullFileName);
-                }
-
-                using (StreamWriter fs = File.CreateText(sourceText_FullFileName))
-                {
-                    foreach (var line in rez)
-                    {
-                        fs.WriteLine(line.ConfigName + "\t" + line.MinWidth + "\t" + line.MaxWidth + "\t" + line.AnimStretchModifier);
-                    }
-                }
-
-                System.Diagnostics.Process.Start(Get_ConfigJson_Path());
-                System.Diagnostics.Process.Start(Get_SourceFileForConfigJson_FullFileName());
-
-                PUIElements.ShowMessageDialog(null, "Source text file created successfully");
-            }
-            catch (Exception e)
-            {
-                Debug.Log("ExtendedBuildingWidth ERROR - Error occured while converting from config.json");
-                Debug.Log(e.Message);
-
-                try
-                { 
-                    PUIElements.ShowMessageDialog(null, "Error occured while converting from config.json. Check logs.");
-                    System.Diagnostics.Process.Start(Get_DebugLog_Path());
-                }
-                catch (Exception e2)
-                {
-                    Debug.Log("ExtendedBuildingWidth ERROR - Error occured while handling an error. Welp...");
-                    Debug.Log(e2.Message);
-                }
-            }
-        }
-
-        public static void CreateConfigJson_From_SourceTextFile(object obj)
-        {
-            try
-            {
-                Debug.Log("ExtendedBuildingWidth - trying to create ConfigJson from SourceFile");
-
-                var lines = Read_From_SourceTextFile();
-
-                var rezult = new List<ExtendableConfigSettings>();
-                foreach (var line in lines)
-                {
-                    var values = line.Split('\t');
-
-                    rezult.Add(new ExtendableConfigSettings()
-                    {
-                        ConfigName = values[0],
-                        MinWidth = int.Parse(values[1]),
-                        MaxWidth = int.Parse(values[2]),
-                        AnimStretchModifier = float.Parse(values[3])
-                    });
-                }
-
-                ModSettings.Instance.SetExtendableConfigSettings(rezult);
-
-                POptions.WriteSettings(ModSettings.Instance);
-
-                PUIElements.ShowConfirmDialog(null, "Config.json generated successfully. Restart to apply changes", RestartGame, null, PLibStrings.RESTART_OK, PLibStrings.RESTART_CANCEL);
-            }
-            catch (Exception e)
-            {
-                Debug.Log("ExtendedBuildingWidth ERROR - Error occured while generating new config.json");
-                Debug.Log(e.Message);
-
-                try
-                {
-                    PUIElements.ShowMessageDialog(null, "Error occured while generating new config.json. Check logs.");
-                    System.Diagnostics.Process.Start(Get_DebugLog_Path());
-                }
-                catch (Exception e2)
-                {
-                    Debug.Log("ExtendedBuildingWidth ERROR - Error occured while handling an error. Welp...");
-                    Debug.Log(e2.Message);
-                }
-            }
-        }
-
-        private static void RestartGame()
-        {
-            App.instance.Restart();
+            _modSettings = modSettings_Instance;
         }
 
         public static void CreateFileWithAllAvailableBuildings(object obj)
         {
-            var allBuildingsList = GetListOfAllBuildings();
+            var allBuildingsList = ListOfAllBuildings;
 
             try
             {
@@ -141,7 +69,7 @@ namespace ExtendedBuildingWidth
                 {
                     foreach (var line in allBuildingsList)
                     {
-                        fs.WriteLine(line);
+                        fs.WriteLine(line.TechName + "\t" + line.Caption + "\t" + line.Desc);
                     }
                 }
 
@@ -166,7 +94,7 @@ namespace ExtendedBuildingWidth
             }
         }
 
-        private static List<string> Read_From_SourceTextFile()
+        public static List<string> Read_From_SourceTextFile()
         {
             var result = new List<string>();
 
@@ -201,7 +129,7 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
-        private static Dictionary<string, Type> FindAllSubclassesOf_STRINGS_BUILDINGS_PREFABS()
+        public static Dictionary<string, Type> FindAllSubclassesOf_STRINGS_BUILDINGS_PREFABS()
         {
             var result = new Dictionary<string, Type>();
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -221,7 +149,7 @@ namespace ExtendedBuildingWidth
         /// <summary>
         /// For some reason, localization texts are maintained via prefabId of BuildingDefConfig classes
         /// </summary>
-        private static string GetTextFromLocalization(Dictionary<string, Type> localizationStrings, string prefabIdUpper, string fieldName)
+        public static string GetTextFromLocalization(Dictionary<string, Type> localizationStrings, string prefabIdUpper, string fieldName)
         {
             string result = null;
 
@@ -238,9 +166,15 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
-        private static List<string> GetListOfAllBuildings()
+        private static string RemoveBetween(string sourceString, string startTag, string endTag)
         {
-            var result = new List<string>();
+            Regex regex = new Regex(string.Format("{0}(.*?){1}", Regex.Escape(startTag), Regex.Escape(endTag)), RegexOptions.RightToLeft);
+            return regex.Replace(sourceString, "");
+        }
+
+        private static List<BuildingDescription> GetListOfAllBuildings()
+        {
+            var result = new List<BuildingDescription>();
 
             try
             {
@@ -270,13 +204,12 @@ namespace ExtendedBuildingWidth
                         descValue = descValueCleansed;
                     }
 
-                    result.Add(string.Concat(buildingDefType.FullName, "\t", nameValue, "\t", descValue));
-                }
-
-                result.Sort();
-                if (result.Any())
-                {
-                    result.Insert(0, string.Concat("TechnicalName", "\t", "In-game Caption", "\t", "Description"));
+                    if (!string.IsNullOrEmpty(nameValue) && nameValue.Contains("<link="))
+                    {
+                        nameValue = RemoveBetween(nameValue, "</link", ">");
+                        nameValue = RemoveBetween(nameValue, "<link=", ">");
+                    }
+                    result.Add(new BuildingDescription() { TechName = buildingDefType.FullName, Caption = nameValue, Desc = descValue });
                 }
             }
             catch (Exception e)
@@ -323,13 +256,14 @@ namespace ExtendedBuildingWidth
                     new ExtendableConfigSettings()
                     {
                         ConfigName = x.FullName,
-                        MinWidth = 2,
-                        MaxWidth = 16,
-                        AnimStretchModifier = 1.12f
+                        MinWidth = DefaultMinWidth,
+                        MaxWidth = DefaultMaxWidth,
+                        AnimStretchModifier = DefaultAnimStretchModifier
                     }
                     )
                 );
             return result;
         }
+
     }
 }

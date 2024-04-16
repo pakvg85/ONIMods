@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
+using PeterHan.PLib.Options;
 
 namespace ExtendedBuildingWidth
 {
@@ -25,8 +25,10 @@ namespace ExtendedBuildingWidth
                 }
             }
 
+            var dummyModSettings = POptions.ReadSettings<ModSettings>();
+            var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
+
             IBuildingConfig config = null;
-            var configsToBeExtended = ModSettings.Instance.GetExtendableConfigSettingsList();
             foreach (var configSettingsItem in configsToBeExtended)
             {
                 try
@@ -194,6 +196,7 @@ namespace ExtendedBuildingWidth
             AdjustUtilityPortsOffsets(dynamicDef);
 
             var originalDef = GetBuildingDefByConfig(config);
+
             // 'Strings' entities are copied from the original
             AdjustStrings(dynamicDef, originalDef);
 
@@ -229,7 +232,6 @@ namespace ExtendedBuildingWidth
 
             AdjustLogicPortsOffsets(dynamicDef);
             AdjustPowerPortsOffsets(dynamicDef);
-            AdjustTravelPortsOffsets(dynamicDef);
 
             Assets.AddBuildingDef(dynamicDef);
 
@@ -335,31 +337,6 @@ namespace ExtendedBuildingWidth
             {
                 AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, width);
                 AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link2, width);
-            }
-        }
-
-        private static void AdjustTravelPortsOffsets(BuildingDef buildingDef)
-        {
-            var width = buildingDef.WidthInCells;
-            if (buildingDef.IsFoundation)
-            {
-                width = buildingDef.WidthInCells + 2;
-            }
-
-            if (buildingDef.BuildingComplete.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingComplete))
-            {
-                AdjustPortOffset(ref travelNetworkLinkBuildingComplete.link1, width);
-                AdjustPortOffset(ref travelNetworkLinkBuildingComplete.link2, width);
-            }
-            if (buildingDef.BuildingUnderConstruction.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingUnderConstruction))
-            {
-                AdjustPortOffset(ref travelNetworkLinkBuildingUnderConstruction.link1, width);
-                AdjustPortOffset(ref travelNetworkLinkBuildingUnderConstruction.link2, width);
-            }
-            if (buildingDef.BuildingPreview.TryGetComponent<TravelTubeUtilityNetworkLink>(out var travelNetworkLinkBuildingPreview))
-            {
-                AdjustPortOffset(ref travelNetworkLinkBuildingPreview.link1, width);
-                AdjustPortOffset(ref travelNetworkLinkBuildingPreview.link2, width);
             }
         }
 

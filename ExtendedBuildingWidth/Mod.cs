@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using KMod;
+using PeterHan.PLib.Actions;
 using PeterHan.PLib.Core;
 using PeterHan.PLib.Options;
 
@@ -17,12 +18,28 @@ namespace ExtendedBuildingWidth
     /// </summary>
     public class Mod : UserMod2
     {
+        public static PAction PAction_GetSmallerBuilding;
+
+        public static PAction PAction_GetBiggerBuilding;
+
         public override void OnLoad(Harmony harmony)
         {
             PUtil.InitLibrary();
 
             var options = new POptions();
             options.RegisterOptions(this, typeof(ModSettings));
+
+            var actionManager = new PActionManager();
+            PAction_GetSmallerBuilding = actionManager.CreateAction(
+                "ExtendedBuildingWidth.GetSmallerBuilding",
+                "Get smaller building",
+                new PKeyBinding(KKeyCode.X, Modifier.Alt)
+            );
+            PAction_GetBiggerBuilding = actionManager.CreateAction(
+                "ExtendedBuildingWidth.GetBiggerBuilding",
+                "Get bigger building",
+                new PKeyBinding(KKeyCode.C, Modifier.Alt)
+            );
 
             base.OnLoad(harmony);
         }
