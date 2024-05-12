@@ -1,5 +1,4 @@
-﻿using PeterHan.PLib.Core;
-using PeterHan.PLib.Options;
+﻿using PeterHan.PLib.Options;
 using PeterHan.PLib.UI;
 using System;
 using System.Collections.Generic;
@@ -265,5 +264,113 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
+        public static List<AnimSplittingSettings> GenerateDefaultValues_For_AnimSplittingSettings()
+        {
+            var result = new List<AnimSplittingSettings>();
+
+            var item = new AnimSplittingSettings()
+            {
+                ConfigName = "GasConduitBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 135,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LiquidConduitBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 145,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "SolidConduitBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 110,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 158,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 147,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicWireBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 130,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingMethod.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 97,
+                MiddlePart_Width = 85,
+                FillingMethod = FillingMethod.Repeat,
+                DoFlipEverySecondIteration = true
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireRefinedBridgeConfig",
+                IsActive = true,
+                MiddlePart_X = 115,
+                MiddlePart_Width = 50,
+                FillingMethod = FillingMethod.Repeat,
+                DoFlipEverySecondIteration = true
+            };
+            result.Add(item);
+
+            return result;
+        }
+
+        public static Dictionary<string, string> GenerateDefaultValues_For_ConfigNameToAnimNamesMap()
+        {
+            var result = new Dictionary<string, string>();
+            result.Add("GasConduitBridgeConfig", "utilitygasbridge_kanim");
+            result.Add("LiquidConduitBridgeConfig", "utilityliquidbridge_kanim");
+            result.Add("SolidConduitBridgeConfig", "utilities_conveyorbridge_kanim");
+            result.Add("High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig", "pressure_gas_bridge_kanim");
+            result.Add("High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig", "pressure_liquid_bridge_kanim");
+            result.Add("LogicWireBridgeConfig", "logic_bridge_kanim");
+            result.Add("WireBridgeConfig", "utilityelectricbridge_kanim");
+            result.Add("WireRefinedBridgeConfig", "utilityelectricbridgeconductive_kanim");
+            return result;
+        }
     }
 }

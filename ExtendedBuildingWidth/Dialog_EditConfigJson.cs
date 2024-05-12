@@ -22,6 +22,9 @@ namespace ExtendedBuildingWidth
         private KScreen _componentScreenEditConfig = null;
         private PDialog _editConfigJson_PDialog = null;
 
+        const string DialogId = "EditConfigJsonDialog";
+        const string DialogTitle = "Edit Config Json";
+        const string DialogBodyGridPanelId = "EditConfigJsonDialogBody";
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
         const int SpacingInPixels = 7;
@@ -37,9 +40,9 @@ namespace ExtendedBuildingWidth
 
         public void CreateAndShow(object obj)
         {
-            var dialog = new PDialog("EditConfigJsonDialog")
+            var dialog = new PDialog(DialogId)
             {
-                Title = "Edit Config Json",
+                Title = DialogTitle,
                 DialogClosed = OnDialogClosed,
                 Size = new Vector2 { x = 800, y = 600 },
                 MaxSize = new Vector2 { x = 800, y = 600 },
@@ -122,7 +125,7 @@ namespace ExtendedBuildingWidth
 
         private void GenerateRecordsPanel()
         {
-            var tableTitlesPanel = new PGridPanel("EditConfigJsonDialogBody") { Margin = new RectOffset(10, 40, 10, 0) };
+            var tableTitlesPanel = new PGridPanel(DialogBodyGridPanelId) { Margin = new RectOffset(10, 40, 10, 0) };
             tableTitlesPanel.AddColumn(new GridColumnSpec(440));
             tableTitlesPanel.AddColumn(new GridColumnSpec(80));
             tableTitlesPanel.AddColumn(new GridColumnSpec(80));
@@ -145,7 +148,7 @@ namespace ExtendedBuildingWidth
 
             _dialogBodyChild.AddChild(tableTitlesPanel);
 
-            var gridPanel = new PGridPanel("EditConfigJsonDialogBody") { Margin = new RectOffset(10, 40, 10, 10) };
+            var gridPanel = new PGridPanel(DialogBodyGridPanelId) { Margin = new RectOffset(10, 40, 10, 10) };
             gridPanel.AddColumn(new GridColumnSpec(440));
             gridPanel.AddColumn(new GridColumnSpec(80));
             gridPanel.AddColumn(new GridColumnSpec(80));
@@ -162,17 +165,27 @@ namespace ExtendedBuildingWidth
             foreach (var entry in _dialogData)
             {
                 iRow++;
-                var bn = new PLabel(entry.TechName);
 
+                string configCaption = string.Empty;
+                if (dict.TryGetValue(entry.TechName, out var buildingDescription))
+                {
+                    configCaption = buildingDescription.Caption;
+                }
+                if (string.IsNullOrEmpty(configCaption))
+                {
+                    configCaption = entry.TechName;
+                }
+
+                var bn = new PLabel(entry.TechName);
                 if (!ShowTechName)
                 {
-                    bn.Text = !string.IsNullOrEmpty(dict[entry.TechName].Caption) ? dict[entry.TechName].Caption : entry.TechName;
+                    bn.Text = configCaption;
                     bn.ToolTip = entry.TechName;
                 }
                 else
                 {
                     bn.Text = entry.TechName;
-                    bn.ToolTip = !string.IsNullOrEmpty(dict[entry.TechName].Caption) ? dict[entry.TechName].Caption : entry.TechName;
+                    bn.ToolTip = configCaption;
                 }
 
                 gridPanel.AddChild(bn, new GridComponentSpec(iRow, 0) { Alignment = TextAnchor.MiddleLeft });
@@ -231,10 +244,16 @@ namespace ExtendedBuildingWidth
             cbShowTechName.Text = "Show tech names";
             cbShowTechName.OnChecked += OnChecked_ShowTechName;
             controlPanel.AddChild(cbShowTechName);
+
             var btnAdd = new PButton();
             btnAdd.Text = "Add or remove records";
             btnAdd.OnClick += OnClick_AddRemoveRecords;
             controlPanel.AddChild(btnAdd);
+
+            //var btnAnimSlicing = new PButton();
+            //btnAnimSlicing.Text = "Modify Anim Slicing Settings";
+            //btnAnimSlicing.OnClick += OnClick_AnimSlicingSettingsDialog;
+            //controlPanel.AddChild(btnAnimSlicing);
 
             _dialogBodyChild.AddChild(controlPanel);
         }
@@ -324,6 +343,12 @@ namespace ExtendedBuildingWidth
             var dARR = new Dialog_AddRemoveRecords(this);
             dARR.CreateAndShow(null);
         }
+
+        //private void OnClick_AnimSlicingSettingsDialog(GameObject source)
+        //{
+        //    var dASS = new Dialog_EditAnimSlicingSettings(_modSettings);
+        //    dASS.CreateAndShow(null);
+        //}
 
         private void OnChecked_ShowTechName(GameObject source, int state)
         {

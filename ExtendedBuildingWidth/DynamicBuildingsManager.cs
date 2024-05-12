@@ -27,55 +27,83 @@ namespace ExtendedBuildingWidth
 
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
+            var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNamesMap();
+            var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
 
             IBuildingConfig config = null;
-            foreach (var configSettingsItem in configsToBeExtended)
+            foreach (var configSettings in configsToBeExtended)
             {
-                try
+                if (!configNameToInstanceMapping.TryGetValue(configSettings.ConfigName, out config))
                 {
-                    config = configNameToInstanceMapping[configSettingsItem.ConfigName];
-                }
-                catch (Exception e)
-                {
-                    config = null;
-                    Debug.Log("ExtendedBuildingWidth ERROR - Exception while loading config " + configSettingsItem.ConfigName);
-                    Debug.Log(e.Message);
-
+                    Debug.Log($"ExtendedBuildingWidth WARNING - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
                     continue;
                 }
 
                 try
                 {
-                    RegisterDynamicBuildings(config, configSettingsItem.MinWidth, configSettingsItem.MaxWidth, configSettingsItem.AnimStretchModifier);
+                    if (!DlcManager.IsDlcListValidForCurrentContent(config.GetDlcIds()))
+                    {
+                        continue;
+                    }
+
+                    var originalDef = GetBuildingDefByConfig(config);
+                    for (var width = configSettings.MinWidth; width <= configSettings.MaxWidth; width++)
+                    {
+                        if (width == originalDef.WidthInCells)
+                        {
+                            continue;
+                        }
+
+                        var dynamicDef = CreateDynamicDef(config, width);
+
+                        var originalWidth = originalDef.WidthInCells;
+                        var widthInCells = dynamicDef.WidthInCells;
+                        var widthInCellsDelta = widthInCells - originalWidth;
+
+                        bool isOldStyle = !splittingSettings.ContainsKey(configSettings.ConfigName)
+                                       || !configNameToAnimNamesMap.ContainsKey(configSettings.ConfigName)
+                                       || !splittingSettings[configSettings.ConfigName].IsActive
+                                       || widthInCellsDelta <= 0;
+
+                        if (!isOldStyle)
+                        {
+                            var origAnimName = configNameToAnimNamesMap[configSettings.ConfigName];
+                            var dynamicAnimName = GetDynamicName(origAnimName, widthInCells);
+                            var splittingSettingsItem = splittingSettings[configSettings.ConfigName];
+
+                            DynamicAnimManager.OverwriteAnimFiles(dynamicDef, dynamicAnimName);
+                            DynamicAnimManager.SplitAnim(
+                                    dynamicDef, 
+                                    widthInCellsDelta, 
+                                    splittingSettingsItem.MiddlePart_X, 
+                                    splittingSettingsItem.MiddlePart_Width, 
+                                    splittingSettingsItem.FillingMethod,
+                                    splittingSettingsItem.DoFlipEverySecondIteration
+                                );
+                        }
+
+                        RegisterEverythingElse(dynamicDef, originalDef, config);
+
+                        if (isOldStyle)
+                        {
+                            DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingComplete, widthInCells, originalWidth, configSettings.AnimStretchModifier);
+                            DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingPreview, widthInCells, originalWidth, configSettings.AnimStretchModifier);
+                            DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingUnderConstruction, widthInCells, originalWidth, configSettings.AnimStretchModifier);
+                        }
+
+                        AddMapping(dynamicDef, originalDef);
+                    }
+                    // Add the original 'BuildingDef' so it could also be picked when switching between widths via ALT+X and ALT+C.
+                    AddMapping(originalDef, originalDef);
                 }
                 catch (Exception e)
                 {
-                    Debug.Log("ExtendedBuildingWidth ERROR - Exception while register buildings for config " + configSettingsItem.ConfigName);
-                    Debug.Log(e.Message);
+                    Debug.Log($"ExtendedBuildingWidth WARNING - exception while register buildings for config {configSettings.ConfigName}");
+                    Debug.Log(e.ToString());
                 }
             }
 
-            ApplyCompabilityWith_HighPressureApplications();
-        }
-
-        private static void RegisterDynamicBuildings(IBuildingConfig config, int minWidth, int maxWidth, float animStretchModifier)
-        {
-            if (!DlcManager.IsDlcListValidForCurrentContent(config.GetDlcIds()))
-            {
-                return;
-            }
-
-            var originalDef = GetBuildingDefByConfig(config);
-            for (var width = minWidth; width <= maxWidth; width++)
-            {
-                if (width != originalDef.WidthInCells)
-                {
-                    var dynamicDef = RegisterDynamicBuilding(config, width, originalDef.WidthInCells, animStretchModifier);
-                    AddMapping(dynamicDef, originalDef);
-                }
-            }
-            // Add the original 'BuildingDef' so it could also be picked when switching between widths via ALT+X and ALT+C.
-            AddMapping(originalDef, originalDef);
+            ApplyCompatibilityWith_HighPressureApplications();
         }
 
         /// <summary>
@@ -84,12 +112,10 @@ namespace ExtendedBuildingWidth
         /// we have to add some values to 'PressurizedTuning.PressurizedLookup' dictionary of 'High_Pressure_Applications' lib.
         /// To do so, we must call method 'PressurizedTuning.TryAddPressurizedInfo' to all the newly created dynamic PrefabID.
         /// </summary>
-        private static void ApplyCompabilityWith_HighPressureApplications()
+        private static void ApplyCompatibilityWith_HighPressureApplications()
         {
             try
             {
-                Debug.Log("ExtendedBuildingWidth - applying compability with 'High_Pressure_Applications'");
-
                 Type dynamicType_PressurizedTuning = null;
 
                 Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -113,11 +139,11 @@ namespace ExtendedBuildingWidth
                 var dynamicMethod_GetPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("GetPressurizedInfo");
                 var dynamicMethod_TryAddPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("TryAddPressurizedInfo");
 
-                foreach(var originalDef in originalDefToDynamicDefAndWidthMap.Keys)
+                foreach(var originalDef in _originalDefToDynamicDefAndWidthMap.Keys)
                 {
                     bool methodTryAddPressurizedInfo_WasSuccessfullyCalledAtLeastOnce = false;
 
-                    foreach (var keyValuePair in originalDefToDynamicDefAndWidthMap[originalDef])
+                    foreach (var keyValuePair in _originalDefToDynamicDefAndWidthMap[originalDef])
                     {
                         var dynamicDef = keyValuePair.Value;
 
@@ -171,31 +197,38 @@ namespace ExtendedBuildingWidth
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Debug.Log("ExtendedBuildingWidth ERROR - failed to apply compability with 'High_Pressure_Applications'");
-                Debug.Log(ex.ToString());
+                Debug.Log("ExtendedBuildingWidth WARNING - failed to apply compability with 'High_Pressure_Applications'");
+                Debug.Log(e.ToString());
             }
         }
 
-        /// <summary>
-        /// This method is ripped from standard 'BuildingConfigManager.RegisterBuilding', few adjustments are made to create dynamic 'BuildingDef' entities.
-        /// </summary>
-        private static BuildingDef RegisterDynamicBuilding(IBuildingConfig config, int width, int originalWidth, float animStretchModifier)
+        private static BuildingDef CreateDynamicDef(IBuildingConfig config, int width)
         {
+            var originalDef = GetBuildingDefByConfig(config);
+
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
             Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = width;
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = true;
+
             BuildingDef dynamicDef = config.CreateBuildingDef();
+            string configName = config.GetType().FullName;
+            AddConfigNameToAnimNameMap(configName, Patch_BuildingTemplates_CreateBuildingDef.AnimNameSave);
+
+            Patch_BuildingTemplates_CreateBuildingDef.AnimNameSave = string.Empty;
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = false;
             Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = 0;
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
 
+            return dynamicDef;
+        }
+
+        private static void RegisterEverythingElse(BuildingDef dynamicDef, BuildingDef originalDef, IBuildingConfig config)
+        {
             // Utility Offset fields should be overwritten because they are generated independently in 'IBuildingConfig.CreateBuildingDef' implementations.
             AdjustUtilityPortsOffsets(dynamicDef);
-
-            var originalDef = GetBuildingDefByConfig(config);
 
             // 'Strings' entities are copied from the original
             AdjustStrings(dynamicDef, originalDef);
@@ -223,7 +256,6 @@ namespace ExtendedBuildingWidth
             dynamicDef.BuildingUnderConstruction.name = BuildingConfigManager.GetUnderConstructionName(dynamicDef.BuildingUnderConstruction.name);
             dynamicDef.BuildingPreview = BuildingLoader.Instance.CreateBuildingPreview(dynamicDef);
             dynamicDef.BuildingPreview.name += "Preview";
-
             dynamicDef.PostProcess();
 
             config.DoPostConfigureComplete(dynamicDef.BuildingComplete);
@@ -234,32 +266,6 @@ namespace ExtendedBuildingWidth
             AdjustPowerPortsOffsets(dynamicDef);
 
             Assets.AddBuildingDef(dynamicDef);
-
-            // ---
-            // 'Building' game objects for dynamically created BuildingDefs have to be stretched explicitly.
-            // ---
-            StretchBuildingGameObject(dynamicDef.BuildingUnderConstruction, width, originalWidth, animStretchModifier);
-            StretchBuildingGameObject(dynamicDef.BuildingPreview, width, originalWidth, animStretchModifier);
-            StretchBuildingGameObject(dynamicDef.BuildingComplete, width, originalWidth, animStretchModifier);
-
-            return dynamicDef;
-        }
-
-        public static void StretchBuildingGameObject(UnityEngine.GameObject gameObject, int width, int originalWidth, float animStretchModifier)
-        {
-            try
-            {
-                var buildingGameObject = gameObject.GetComponent<Building>().gameObject;
-                var animController = buildingGameObject.GetComponent<KBatchedAnimController>();
-                // Just stretching animController width for a building does not look fine (because for example dynamic bridges get progressively
-                // more narrow), so it should be adjusted with modifier. For gas bridge this modifier is '1.12f'
-                animController.animWidth = (float)width / (float)originalWidth * animStretchModifier;
-            }
-            catch (Exception e)
-            {
-                Debug.Log("ExtendedBuildingWidth ERROR - stretching failed for " + gameObject.name + " because:");
-                Debug.Log(e.Message);
-            }
         }
 
         /// <summary>
@@ -387,22 +393,22 @@ namespace ExtendedBuildingWidth
 
         private static void AddMapping(BuildingDef dynamicDef, BuildingDef originalDef)
         {
-            if (dynamicDefToOriginalDefMap.ContainsKey(dynamicDef))
+            if (_dynamicDefToOriginalDefMap.ContainsKey(dynamicDef))
             {
-                throw new Exception("ExtendedBuildingWidth - 'DynamicDefToOriginalDefMap' already has key " + dynamicDef.PrefabID + ". How come?");
+                throw new Exception($"ExtendedBuildingWidth ERROR - 'DynamicDefToOriginalDefMap' already has key {dynamicDef.PrefabID}. How come?");
             }
-            dynamicDefToOriginalDefMap[dynamicDef] = originalDef;
+            _dynamicDefToOriginalDefMap[dynamicDef] = originalDef;
 
-            if (!originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef))
+            if (!_originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef))
             {
-                originalDefToDynamicDefAndWidthMap[originalDef] = new Dictionary<int, BuildingDef>();
+                _originalDefToDynamicDefAndWidthMap[originalDef] = new Dictionary<int, BuildingDef>();
             }
 
-            if (originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(dynamicDef.WidthInCells))
+            if (_originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(dynamicDef.WidthInCells))
             {
-                throw new Exception("ExtendedBuildingWidth - 'OriginalDefToDynamicDefAndWidthMap' already has key (" + originalDef.PrefabID + ", " + dynamicDef.WidthInCells + "). How come?");
+                throw new Exception($"ExtendedBuildingWidth ERROR - 'OriginalDefToDynamicDefAndWidthMap' already has key ({originalDef.PrefabID}, {dynamicDef.WidthInCells} + ). How come?");
             }
-            originalDefToDynamicDefAndWidthMap[originalDef][dynamicDef.WidthInCells] = dynamicDef;
+            _originalDefToDynamicDefAndWidthMap[originalDef][dynamicDef.WidthInCells] = dynamicDef;
         }
 
         public static bool SwitchToPrevWidth(BuildingDef currentlySelectedDef)
@@ -435,7 +441,7 @@ namespace ExtendedBuildingWidth
         /// Standard buildings are bound to buttons in build menu, so when such button is pressed, method 'PlanScreen.OnSelectBuilding' is triggered.
         /// Dynamic buildings are not bound to buttons, so some workaround should be done to visualize particular dynamic building.
         /// </summary>
-        public static void SetActiveBuildingDef(BuildingDef dynamicDef)
+        private static void SetActiveBuildingDef(BuildingDef dynamicDef)
         {
             var currentOrientation = (Orientation)(Traverse.Create(BuildTool.Instance).Field("buildingOrientation").GetValue() as object);
 
@@ -453,7 +459,7 @@ namespace ExtendedBuildingWidth
         /// - Material selection screen does not show correct amount of materials for enlarged buildings. It could be probably
         ///   fixed via correct call of 'PlanScreen.Instance.ProductInfoScreen.ConfigureScreen', but for now it causes exception deep inside
         /// </summary>
-        public static void PlanScreen_OnSelectBuilding_HugeRipoff(BuildingDef dynamicDef)
+        private static void PlanScreen_OnSelectBuilding_HugeRipoff(BuildingDef dynamicDef)
         {
             Traverse.Create(PrebuildTool.Instance).Field("def").SetValue(dynamicDef);
 
@@ -468,7 +474,7 @@ namespace ExtendedBuildingWidth
         /// <summary>
         /// Simulate 'OnSelectBuilding' with some parts thrown out. Does not work
         /// </summary>
-        public static void PlanScreen_OnSelectBuilding_Ripoff(BuildingDef dynamicDef, string facadeID = null)
+        private static void PlanScreen_OnSelectBuilding_Ripoff(BuildingDef dynamicDef, string facadeID = null)
         {
             var currentlySelectedToggle = Traverse.Create(PlanScreen.Instance).Field("currentlySelectedToggle").GetValue() as KToggle;
             PlanBuildingToggle planBuildingToggle = null;
@@ -498,7 +504,7 @@ namespace ExtendedBuildingWidth
         /// <summary>
         /// Call the original 'OnSelectBuilding' with minimuum workarounds. Does not work
         /// </summary>
-        public static void PlanScreen_OnSelectBuilding(BuildingDef dynamicDef)
+        private static void PlanScreen_OnSelectBuilding(BuildingDef dynamicDef)
         {
             var originalDef = GetOriginalDefByDynamicDef(dynamicDef);
 
@@ -516,17 +522,30 @@ namespace ExtendedBuildingWidth
             dynamicDef.Tag = dynamicDefTagSave;
         }
 
+        public static string GetDynamicName(string origName, int width) => origName + "_width" + width.ToString();
         public static Dictionary<IBuildingConfig, BuildingDef> GetBuildingConfigManager_ConfigTable() => _configTable;
-        public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => originalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
-        public static bool IsDynamicallyCreated(BuildingDef buildingDef) => dynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (dynamicDefToOriginalDefMap[buildingDef] != buildingDef);
+        public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => _originalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
+        public static bool IsDynamicallyCreated(BuildingDef buildingDef) => _dynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (_dynamicDefToOriginalDefMap[buildingDef] != buildingDef);
         public static BuildingDef GetBuildingDefByConfig(IBuildingConfig config) => _configTable[config];
-        public static BuildingDef GetOriginalDefByDynamicDef(BuildingDef dynamicDef) => dynamicDefToOriginalDefMap[dynamicDef];
-        public static BuildingDef GetDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => originalDefToDynamicDefAndWidthMap[originalDef][defWidth];
-        public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
+        public static BuildingDef GetOriginalDefByDynamicDef(BuildingDef dynamicDef) => _dynamicDefToOriginalDefMap[dynamicDef];
+        public static BuildingDef GetDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => _originalDefToDynamicDefAndWidthMap[originalDef][defWidth];
+        public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => _originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && _originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
+        public static void AddConfigNameToAnimNameMap(string configName, string animName)
+        {
+            if (!_configNameToAnimNameMapGlobal.ContainsKey(configName))
+            {
+                _configNameToAnimNameMapGlobal.Add(configName, animName);
+            }
+        }
+        //public static string GetAnimName(string configName) => _configNameToAnimNameMapGlobal[configName];
+        //public static List<KeyValuePair<string, string>> GetAnimNames(string animName) => _configNameToAnimNameMapGlobal.Where(x => x.Value == animName).ToList();
+        //public static Dictionary<string, string> GetConfigNameToAnimNamesMap() => _configNameToAnimNameMapGlobal;
 
         private static Dictionary<IBuildingConfig, BuildingDef> _configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
-        private static Dictionary<BuildingDef, BuildingDef> dynamicDefToOriginalDefMap = new Dictionary<BuildingDef, BuildingDef>();
-        private static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> originalDefToDynamicDefAndWidthMap = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
+        //private static Dictionary<BuildingDef, IBuildingConfig> _originalDefToConfigMap = _configTable.ToDictionary(x => x.Value, y => y.Key);
+        private static Dictionary<BuildingDef, BuildingDef> _dynamicDefToOriginalDefMap = new Dictionary<BuildingDef, BuildingDef>();
+        private static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> _originalDefToDynamicDefAndWidthMap = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
+        private static Dictionary<string, string> _configNameToAnimNameMapGlobal = new Dictionary<string, string>();
     }
 
 }

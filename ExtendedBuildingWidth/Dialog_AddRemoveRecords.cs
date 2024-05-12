@@ -13,7 +13,6 @@ namespace ExtendedBuildingWidth
             public string TechName { get; set; }
             public int IsChecked { get; set; }
             public string Caption { get; set; }
-            public string Desc { get; set; }
         }
 
         private class PPanelWithClearableChildren : PPanel
@@ -116,18 +115,58 @@ namespace ExtendedBuildingWidth
             _addRemoveDialog_BodyPanelContents.ClearChildren();
         }
 
+        /// <summary>
+        /// We cannot simply add all records from 'SettingsManager.ListOfAllBuildings', because there could be non-existing entries
+        /// in config.json that should be shown.
+        /// </summary>
         private void GenerateInitialData()
         {
-            var values = _dialog_EditConfigJson.GetTechNames().ToDictionary(x => x, y => y);
             _dialogData.Clear();
-            foreach (var entry in SettingsManager.ListOfAllBuildings)
+
+            var allBuildings = SettingsManager.ListOfAllBuildings;
+            var allBuildings_Dict = allBuildings.ToDictionary(x => x.TechName, y => y);
+            var checkedTechNames = _dialog_EditConfigJson.GetTechNames();
+            var techNames_Sorted = new SortedSet<string>(checkedTechNames);
+            var uncheckedTechNames = allBuildings.Where(x => !techNames_Sorted.Contains(x.TechName)).Select(x => x.TechName).ToList();
+
+            foreach (var techName in checkedTechNames)
             {
+                string caption = string.Empty;
+                if (allBuildings_Dict.TryGetValue(techName, out var dictEntry))
+                {
+                    caption = dictEntry.Caption;
+                }
+                if (string.IsNullOrEmpty(caption))
+                {
+                    caption = techName;
+                }
+
                 var rec = new AddRemoveDialog_Item()
                 {
-                    IsChecked = values.ContainsKey(entry.TechName) ? 1 : 0,
-                    TechName = entry.TechName,
-                    Caption = !string.IsNullOrEmpty(entry.Caption) ? entry.Caption : entry.TechName,
-                    Desc = entry.Desc
+                    IsChecked = 1,
+                    TechName = techName,
+                    Caption = caption
+                };
+                _dialogData.Add(rec);
+            }
+
+            foreach (var techName in uncheckedTechNames)
+            {
+                string caption = string.Empty;
+                if (allBuildings_Dict.TryGetValue(techName, out var dictEntry))
+                {
+                    caption = dictEntry.Caption;
+                }
+                if (string.IsNullOrEmpty(caption))
+                {
+                    caption = techName;
+                }
+
+                var rec = new AddRemoveDialog_Item()
+                {
+                    IsChecked = 0,
+                    TechName = techName,
+                    Caption = caption
                 };
                 _dialogData.Add(rec);
             }

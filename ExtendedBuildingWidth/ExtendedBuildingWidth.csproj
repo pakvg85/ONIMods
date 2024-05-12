@@ -51,6 +51,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Runtime.InteropServices.RuntimeInformation" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -78,15 +79,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Dialog_AddRemoveRecords.cs" />
+    <Compile Include="Dialog_EditAnimSlicingSettings.cs" />
     <Compile Include="Dialog_EditConfigJson.cs" />
+    <Compile Include="DynamicAnimManager.cs" />
     <Compile Include="DynamicBuildingsManager.cs" />
     <Compile Include="ExtendableConfigSettings.cs" />
+    <Compile Include="Harmony_Patches.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="ModSettings.cs" />
-    <Compile Include="Patch_BuildingTemplates.cs" />
-    <Compile Include="Patch_BuildTool.cs" />
-    <Compile Include="Patch_GeneratedBuildings.cs" />
-    <Compile Include="Patch_PlanScreen.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SettingsManager.cs" />
   </ItemGroup>
