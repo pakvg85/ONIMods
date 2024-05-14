@@ -11,8 +11,6 @@ namespace ExtendedBuildingWidth
     {
         public static void RegisterDynamicBuildings_For_ExtendableConfigSettings()
         {
-            var configNameToInstanceMapping = ConfigMap;
-
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
             var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNamesMap();
@@ -21,7 +19,7 @@ namespace ExtendedBuildingWidth
             IBuildingConfig config = null;
             foreach (var configSettings in configsToBeExtended)
             {
-                if (!configNameToInstanceMapping.TryGetValue(configSettings.ConfigName, out config))
+                if (!ConfigMap.TryGetValue(configSettings.ConfigName, out config))
                 {
                     Debug.Log($"ExtendedBuildingWidth WARNING - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
                     continue;

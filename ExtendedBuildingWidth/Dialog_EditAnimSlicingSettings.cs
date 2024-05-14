@@ -112,8 +112,14 @@ namespace ExtendedBuildingWidth
             new StringListOption("Repeat")
         };
 
+        const int MinBuildingWidthToShow = 3;
+        const int MaxBuildingWidthToShow = 8;
+        const int SymbolToShowIndex = 0;
+        const int SymbolFrameToShowIndex = 0;
+
         public bool ShowTechName { get; set; } = false;
         public string CurrentConfigName { get; set; } = string.Empty;
+        public int DesiredBuildingWidthToShow { get; set; } = 5;
 
         public Dialog_EditAnimSlicingSettings(ModSettings modSettings)
         {
@@ -283,7 +289,7 @@ namespace ExtendedBuildingWidth
                 }
 
                 var bn = new PButton(entry.TechName);
-                bn.OnClick = OnConfigNameButton_Click;
+                bn.OnClick = OnButtonClick_ConfigName;
                 bn.Color = new ColorStyleSetting()
                 {
                     hoverColor = Color.clear,
@@ -311,7 +317,7 @@ namespace ExtendedBuildingWidth
                 {
                     Content = groups,
                     InitialItem = groups[(int)entry.FillingMethod],
-                    OnOptionSelected = On_StringListOption_Selected,
+                    OnOptionSelected = OnOptionSelected_StringListOption,
                     ToolTip = ExpansionStyleCombobox_Tooltip
                 };
                 eSt.MinWidth = 60;
@@ -361,11 +367,6 @@ namespace ExtendedBuildingWidth
             _dialogBodyChild.AddChild(scrollPane);
         }
 
-        const int DesiredBuildingWidthToShow = 7; // ToDo: make it as a slider?
-        const int MaxBuildingWidthToShow = 8;
-        const int SymbolToShowIndex = 0;
-        const int SymbolFrameToShowIndex = 0;
-
         private void GenerateDynamicBuildingPreviewPanel()
         {
             if (string.IsNullOrEmpty(CurrentConfigName) || !DynamicBuildingsManager.ConfigMap.ContainsKey(CurrentConfigName))
@@ -375,10 +376,10 @@ namespace ExtendedBuildingWidth
 
             _dynamicBuildingPreviewPanel = new PPanel("DynamicBuildingPreviewPanel") { Direction = PanelDirection.Vertical };
 
-            var sprites = GenerateSpritesToShow(CurrentConfigName, DesiredBuildingWidthToShow);
-
             var basicInfo = GenerateBasicInfoPanel();
             _dynamicBuildingPreviewPanel.AddChild(basicInfo);
+
+            var sprites = GenerateSpritesToShow(CurrentConfigName, DesiredBuildingWidthToShow);
 
             var gridPanelWithCaptions = GenerateCaptionsForSprites(sprites);
             _dynamicBuildingPreviewPanel.AddChild(gridPanelWithCaptions);
@@ -393,18 +394,36 @@ namespace ExtendedBuildingWidth
 
         private PPanel GenerateBasicInfoPanel()
         {
+            var result = new PPanel()
+            {
+                Direction = PanelDirection.Horizontal,
+                Margin = new RectOffset(0, 0, 10, 10)
+            };
+
             var config = DynamicBuildingsManager.ConfigMap[CurrentConfigName];
             var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
             var symbol = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetSymbolByIndex(SymbolToShowIndex);
             var symbolFrame = symbol.GetFrame(SymbolFrameToShowIndex);
             var texture = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetTexture(0);
-            var labelInfo = new PLabel();
+
+            var labelInfo = new PLabel() { Margin = new RectOffset(10, 10, 0, 0) };
             labelInfo.Text = "Original width: " + ((int)((symbolFrame.uvMax.x - symbolFrame.uvMin.x) * texture.width)).ToString();
-            var result = new PPanel()
-            {
-                Margin = new RectOffset(0, 0, 10, 10)
-            };
             result.AddChild(labelInfo);
+
+            var dynSize = new PLabel() { Margin = new RectOffset(10, 10, 0, 0) };
+            dynSize.Text = "Dynamic building size: " + DesiredBuildingWidthToShow;
+            result.AddChild(dynSize);
+
+            var btSmaller = new PButton() { Margin = new RectOffset(10, 10, 0, 0) };
+            btSmaller.Text = "<";
+            btSmaller.OnClick = OnButtonClick_MakeSmaller;
+            result.AddChild(btSmaller);
+
+            var btBigger = new PButton() { Margin = new RectOffset(10, 10, 0, 0) };
+            btBigger.Text = ">";
+            btBigger.OnClick = OnButtonClick_MakeBigger;
+            result.AddChild(btBigger);
+
             return result;
         }
 
@@ -614,7 +633,7 @@ namespace ExtendedBuildingWidth
             }
         }
 
-        private void On_StringListOption_Selected(GameObject source, StringListOption option)
+        private void OnOptionSelected_StringListOption(GameObject source, StringListOption option)
         {
             int index = groups.IndexOf(option);
 
@@ -668,11 +687,31 @@ namespace ExtendedBuildingWidth
             RebuildBodyAndShow();
         }
         
-        private void OnConfigNameButton_Click(GameObject source)
+        private void OnButtonClick_ConfigName(GameObject source)
         {
             var techName = source.name;
 
             CurrentConfigName = techName;
+            RebuildBodyAndShow();
+        }
+
+        private void OnButtonClick_MakeSmaller(GameObject source)
+        {
+            if (DesiredBuildingWidthToShow - 1 < MinBuildingWidthToShow)
+            {
+                return;
+            }
+            DesiredBuildingWidthToShow--;
+            RebuildBodyAndShow();
+        }
+
+        private void OnButtonClick_MakeBigger(GameObject source)
+        {
+            if (DesiredBuildingWidthToShow + 1 > MaxBuildingWidthToShow)
+            {
+                return;
+            }
+            DesiredBuildingWidthToShow++;
             RebuildBodyAndShow();
         }
     }

@@ -196,8 +196,13 @@ namespace ExtendedBuildingWidth
                     break;
 
                 case FillingMethod.Repeat:
-                    float scaledWidth = RescaleWidthToFitIntoGameCell(middle_Width);
-                    bool isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (middle_Width - 1) <= lastFrame_OutputX;
+                    float koef = (middle_Width + delta_Width) / middle_Width;
+                    var koefRoundedToNearestUneven = Math.Floor((decimal)koef) % 2 == 1 ? Math.Floor((decimal)koef) : Math.Ceiling((decimal)koef);
+                    float scaledWidth = (middle_Width + delta_Width) / (float)koefRoundedToNearestUneven;
+
+                    const int OverlappingToleranceInPixels = 3;
+
+                    bool isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (scaledWidth - 1) <= lastFrame_OutputX + OverlappingToleranceInPixels;
                     bool mustMirrorFrame = false;
                     while (isNextFrameRightBorderOverlappingLastFrame)
                     {
@@ -222,7 +227,7 @@ namespace ExtendedBuildingWidth
                         next_ScreenOutput_X = screenOutput_X + (screenOutput_Width - 1) + 1;
                         mustMirrorFrame = doFlipEverySecondIteration ? !mustMirrorFrame : mustMirrorFrame;
 
-                        isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (middle_Width - 1) <= lastFrame_OutputX;
+                        isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (scaledWidth - 1) <= lastFrame_OutputX + OverlappingToleranceInPixels;
                     }
                     next_NewFrame_X = newFrame_X + (newFrame_Width - 1) + 1;
 
