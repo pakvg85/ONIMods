@@ -304,10 +304,9 @@ namespace ExtendedBuildingWidth
                 pageNumberBtn.OnClick += OnClick_PageNumber;
                 if (i == _currentPage)
                 {
-                    pageNumberBtn.Color = new ColorStyleSetting() {
-                        hoverColor = Color.magenta,
-                        inactiveColor = Color.magenta
-                    };
+                    pageNumberBtn.Color = ScriptableObject.CreateInstance<ColorStyleSetting>();
+                    pageNumberBtn.Color.hoverColor = Color.magenta;
+                    pageNumberBtn.Color.inactiveColor = Color.magenta;
                 }
                 pageButtonsPanel.AddChild(pageNumberBtn);
             }
@@ -387,16 +386,18 @@ namespace ExtendedBuildingWidth
 
         private void OnDialogClosed(string option)
         {
-            if (option != DialogOption_Cancel)
+            if (option != DialogOption_Ok)
             {
-                _dialog_EditConfigJson.ShowTechName = ShowTechName;
-                var addRemoveRecords = new List<Tuple<string, bool>>();
-                foreach (var entry in _modifiedItems.Values)
-                {
-                    addRemoveRecords.Add(new Tuple<string, bool>(entry.TechName, (entry.IsChecked == 1)));
-                }
-                _dialog_EditConfigJson.ApplyChanges(addRemoveRecords);
+                return;
             }
+
+            _dialog_EditConfigJson.ShowTechName = ShowTechName;
+            var addRemoveRecords = new List<Tuple<string, bool>>();
+            foreach (var entry in _modifiedItems.Values)
+            {
+                addRemoveRecords.Add(new Tuple<string, bool>(entry.TechName, (entry.IsChecked == 1)));
+            }
+            _dialog_EditConfigJson.ApplyChanges(addRemoveRecords);
 
             _dialog_EditConfigJson.RebuildBodyAndShow();
         }

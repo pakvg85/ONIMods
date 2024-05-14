@@ -197,8 +197,16 @@ namespace ExtendedBuildingWidth
 
                 case FillingMethod.Repeat:
                     float koef = (middle_Width + delta_Width) / middle_Width;
-                    var koefRoundedToNearestUneven = Math.Floor((decimal)koef) % 2 == 1 ? Math.Floor((decimal)koef) : Math.Ceiling((decimal)koef);
-                    float scaledWidth = (middle_Width + delta_Width) / (float)koefRoundedToNearestUneven;
+                    decimal koefRounded;
+                    if (doFlipEverySecondIteration)
+                    {
+                        koefRounded = Math.Floor((decimal)koef) % 2 == 1 ? Math.Floor((decimal)koef) : Math.Ceiling((decimal)koef);
+                    }
+                    else
+                    {
+                        koefRounded = Math.Round((decimal)koef);
+                    }
+                    float scaledWidth = (middle_Width + delta_Width) / (float)koefRounded;
 
                     const int OverlappingToleranceInPixels = 3;
 

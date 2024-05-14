@@ -17,7 +17,7 @@ namespace ExtendedBuildingWidth
             public int MiddlePart_X { get; set; }
             public int MiddlePart_Width { get; set; }
             public FillingMethod FillingMethod { get; set; }
-            public bool DoFlipEverySecondTime { get; set; }
+            public bool DoFlipEverySecondIteration { get; set; }
         }
 
         /// <summary>
@@ -290,11 +290,9 @@ namespace ExtendedBuildingWidth
 
                 var bn = new PButton(entry.TechName);
                 bn.OnClick = OnButtonClick_ConfigName;
-                bn.Color = new ColorStyleSetting()
-                {
-                    hoverColor = Color.clear,
-                    inactiveColor = Color.clear
-                };
+                bn.Color = ScriptableObject.CreateInstance<ColorStyleSetting>();
+                bn.Color.hoverColor = Color.clear;
+                bn.Color.inactiveColor = Color.clear;
                 if (!ShowTechName)
                 {
                     bn.Text = configCaption;
@@ -338,7 +336,7 @@ namespace ExtendedBuildingWidth
                 gridPanel.AddChild(mfW, new GridComponentSpec(iRow, 4));
 
                 var df = new PCheckBox(entry.TechName);
-                df.InitialState = entry.DoFlipEverySecondTime ? 1 : 0;
+                df.InitialState = entry.DoFlipEverySecondIteration ? 1 : 0;
                 df.ToolTip = DoFlipEverySecondIteration_Tooltip;
                 df.OnChecked = OnChecked_DoFlipEverySecondIteration;
                 gridPanel.AddChild(df, new GridComponentSpec(iRow, 5));
@@ -384,8 +382,7 @@ namespace ExtendedBuildingWidth
             var gridPanelWithCaptions = GenerateCaptionsForSprites(sprites);
             _dynamicBuildingPreviewPanel.AddChild(gridPanelWithCaptions);
 
-            var animSlicingSettings = _modSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
-            var animSlicingSettingsItem = animSlicingSettings[CurrentConfigName];
+            var animSlicingSettingsItem = _dialogData.Where(x => x.TechName == CurrentConfigName).FirstOrDefault();
             var gridPanelWithSprites = GenerateScreenComponentsForSprites(sprites, animSlicingSettingsItem.DoFlipEverySecondIteration);
             _dynamicBuildingPreviewPanel.AddChild(gridPanelWithSprites);
 
@@ -432,8 +429,7 @@ namespace ExtendedBuildingWidth
             var config = DynamicBuildingsManager.ConfigMap[configName];
             var extendableConfigSettings = _modSettings.GetExtendableConfigSettingsList().ToDictionary(x => x.ConfigName, y => y);
             var extendableConfigSettingsItem = extendableConfigSettings[configName];
-            var animSlicingSettings = _modSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
-            var animSlicingSettingsItem = animSlicingSettings[configName];
+            var animSlicingSettingsItem = _dialogData.Where(x => x.TechName == configName).FirstOrDefault();
 
             var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
             var texture = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetTexture(0);
@@ -568,7 +564,7 @@ namespace ExtendedBuildingWidth
                     MiddlePart_X = entry.MiddlePart_X,
                     MiddlePart_Width = entry.MiddlePart_Width,
                     FillingMethod = entry.FillingMethod,
-                    DoFlipEverySecondTime = entry.DoFlipEverySecondIteration
+                    DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
                 };
                 _dialogData.Add(rec);
             }
@@ -579,7 +575,7 @@ namespace ExtendedBuildingWidth
 
         private void OnDialogClosed(string option)
         {
-            if (option == DialogOption_Cancel)
+            if (option != DialogOption_Ok)
             {
                 return;
             }
@@ -594,7 +590,7 @@ namespace ExtendedBuildingWidth
                     MiddlePart_X = entry.MiddlePart_X,
                     MiddlePart_Width = entry.MiddlePart_Width,
                     FillingMethod = entry.FillingMethod,
-                    DoFlipEverySecondIteration = entry.DoFlipEverySecondTime
+                    DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
                 };
                 newRez.Add(rec);
             }
@@ -673,7 +669,7 @@ namespace ExtendedBuildingWidth
 
             var record = _dialogData.Where(x => x.TechName == checkButton.name).FirstOrDefault();
 
-            record.DoFlipEverySecondTime = (newState == 1);
+            record.DoFlipEverySecondIteration = (newState == 1);
             CurrentConfigName = record.TechName;
             RebuildBodyAndShow();
         }

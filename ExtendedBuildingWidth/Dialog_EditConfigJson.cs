@@ -277,7 +277,7 @@ namespace ExtendedBuildingWidth
 
         private void OnDialogClosed(string option)
         {
-            if (option == DialogOption_Cancel)
+            if (option != DialogOption_Ok)
             {
                 return;
             }
