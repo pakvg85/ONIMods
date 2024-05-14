@@ -1,8 +1,10 @@
-﻿using PeterHan.PLib.UI;
+﻿using PeterHan.PLib.Core;
+using PeterHan.PLib.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using static STRINGS.UI.UISIDESCREENS;
 
 namespace ExtendedBuildingWidth
 {
@@ -18,12 +20,71 @@ namespace ExtendedBuildingWidth
             public bool DoFlipEverySecondTime { get; set; }
         }
 
+        /// <summary>
+        /// Clone of PPanel with ability to flip its image by X
+        /// </summary>
+        private class PPanelWithFlippableImage : PPanel
+        {
+            public bool FlipByX { get; set; }
+
+            private GameObject Build(Vector2 size, bool dynamic, bool flipByX)
+            {
+                GameObject gameObject = PUIElements.CreateUI(null, base.Name);
+
+                SetImage(gameObject);
+
+                var imageChild = gameObject.GetComponent<UnityEngine.UI.Image>();
+
+                if (flipByX)
+                {
+                    var transform = imageChild.rectTransform();
+                    var scale = Vector3.one;
+                    scale.x = -1.0f;
+                    transform.localScale = scale;
+                    //float rot = 0.0f;
+                    //transform.Rotate(new Vector3(0.0f, 0.0f, rot));
+                }
+
+                foreach (IUIComponent child in children)
+                {
+                    GameObject gameObject2 = child.Build();
+                    gameObject2.SetParent(gameObject);
+                    PUIElements.SetAnchors(gameObject2, PUIAnchoring.Stretch, PUIAnchoring.Stretch);
+                }
+
+                BoxLayoutGroup boxLayoutGroup = gameObject.AddComponent<BoxLayoutGroup>();
+                boxLayoutGroup.Params = new BoxLayoutParams
+                {
+                    Direction = Direction,
+                    Alignment = Alignment,
+                    Spacing = Spacing,
+                    Margin = base.Margin
+                };
+                if (!dynamic)
+                {
+                    boxLayoutGroup.LockLayout();
+                    gameObject.SetMinUISize(size);
+                }
+
+                boxLayoutGroup.flexibleWidth = base.FlexSize.x;
+                boxLayoutGroup.flexibleHeight = base.FlexSize.y;
+                InvokeRealize(gameObject);
+                return gameObject;
+            }
+
+            public override GameObject Build()
+            {
+                return Build(default(Vector2), DynamicSize, FlipByX);
+            }
+        }
+
         private readonly List<EditAnimSlicingSettings_Item> _dialogData = new List<EditAnimSlicingSettings_Item>();
 
         private PPanel _dialogBodyChild = null;
         private PPanel _animSlicingDialogBody = null;
         private KScreen _componentScreenEditConfig = null;
         private PDialog _animSlicing_PDialog = null;
+        private PPanel _dynamicBuildingPreviewPanel = null;
 
         const string DialogId = "EditAnimSlicingSettings";
         const string DialogTitle = "Edit Anim Slicing Settings";
@@ -43,8 +104,6 @@ namespace ExtendedBuildingWidth
         const string DialogOption_Cancel = "cancel";
         const int SpacingInPixels = 7;
 
-        public bool ShowTechName = false;
-
         private readonly ModSettings _modSettings;
 
         private List<StringListOption> groups = new List<StringListOption>()
@@ -52,6 +111,9 @@ namespace ExtendedBuildingWidth
             new StringListOption("Stretch"),
             new StringListOption("Repeat")
         };
+
+        public bool ShowTechName { get; set; } = false;
+        public string CurrentConfigName { get; set; } = string.Empty;
 
         public Dialog_EditAnimSlicingSettings(ModSettings modSettings)
         {
@@ -70,7 +132,7 @@ namespace ExtendedBuildingWidth
             }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
             .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
 
-            GenerateData();
+            GenerateInitialData();
 
             _animSlicing_PDialog = dialog;
             _animSlicingDialogBody = dialog.Body;
@@ -88,6 +150,7 @@ namespace ExtendedBuildingWidth
             ClearContents();
             GenerateRecordsPanel();
             GenerateControlPanel();
+            GenerateDynamicBuildingPreviewPanel();
 
             _animSlicingDialogBody.AddChild(_dialogBodyChild);
 
@@ -219,7 +282,13 @@ namespace ExtendedBuildingWidth
                     configCaption = entry.TechName;
                 }
 
-                var bn = new PLabel(entry.TechName);
+                var bn = new PButton(entry.TechName);
+                bn.OnClick = OnConfigNameButton_Click;
+                bn.Color = new ColorStyleSetting()
+                {
+                    hoverColor = Color.clear,
+                    inactiveColor = Color.clear
+                };
                 if (!ShowTechName)
                 {
                     bn.Text = configCaption;
@@ -292,6 +361,159 @@ namespace ExtendedBuildingWidth
             _dialogBodyChild.AddChild(scrollPane);
         }
 
+        const int DesiredBuildingWidthToShow = 7; // ToDo: make it as a slider?
+        const int MaxBuildingWidthToShow = 8;
+        const int SymbolToShowIndex = 0;
+        const int SymbolFrameToShowIndex = 0;
+
+        private void GenerateDynamicBuildingPreviewPanel()
+        {
+            if (string.IsNullOrEmpty(CurrentConfigName) || !DynamicBuildingsManager.ConfigMap.ContainsKey(CurrentConfigName))
+            {
+                return;
+            }
+
+            _dynamicBuildingPreviewPanel = new PPanel("DynamicBuildingPreviewPanel") { Direction = PanelDirection.Vertical };
+
+            var sprites = GenerateSpritesToShow(CurrentConfigName, DesiredBuildingWidthToShow);
+
+            var basicInfo = GenerateBasicInfoPanel();
+            _dynamicBuildingPreviewPanel.AddChild(basicInfo);
+
+            var gridPanelWithCaptions = GenerateCaptionsForSprites(sprites);
+            _dynamicBuildingPreviewPanel.AddChild(gridPanelWithCaptions);
+
+            var animSlicingSettings = _modSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
+            var animSlicingSettingsItem = animSlicingSettings[CurrentConfigName];
+            var gridPanelWithSprites = GenerateScreenComponentsForSprites(sprites, animSlicingSettingsItem.DoFlipEverySecondIteration);
+            _dynamicBuildingPreviewPanel.AddChild(gridPanelWithSprites);
+
+            _dialogBodyChild.AddChild(_dynamicBuildingPreviewPanel);
+        }
+
+        private PPanel GenerateBasicInfoPanel()
+        {
+            var config = DynamicBuildingsManager.ConfigMap[CurrentConfigName];
+            var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+            var symbol = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetSymbolByIndex(SymbolToShowIndex);
+            var symbolFrame = symbol.GetFrame(SymbolFrameToShowIndex);
+            var texture = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetTexture(0);
+            var labelInfo = new PLabel();
+            labelInfo.Text = "Original width: " + ((int)((symbolFrame.uvMax.x - symbolFrame.uvMin.x) * texture.width)).ToString();
+            var result = new PPanel()
+            {
+                Margin = new RectOffset(0, 0, 10, 10)
+            };
+            result.AddChild(labelInfo);
+            return result;
+        }
+
+        private List<Sprite> GenerateSpritesToShow(string configName, int desiredBuildingWidthToShow)
+        {
+            var config = DynamicBuildingsManager.ConfigMap[configName];
+            var extendableConfigSettings = _modSettings.GetExtendableConfigSettingsList().ToDictionary(x => x.ConfigName, y => y);
+            var extendableConfigSettingsItem = extendableConfigSettings[configName];
+            var animSlicingSettings = _modSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
+            var animSlicingSettingsItem = animSlicingSettings[configName];
+
+            var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+            var texture = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetTexture(0);
+            int textureWidth = texture.width;
+            var dynamicBuildingWidthToShow = Math.Min(Math.Min(desiredBuildingWidthToShow, extendableConfigSettingsItem.MaxWidth), MaxBuildingWidthToShow);
+            int widthInCellsDelta = dynamicBuildingWidthToShow - originalDef.WidthInCells;
+            var symbol = originalDef.AnimFiles.FirstOrDefault().GetData().build.GetSymbolByIndex(SymbolToShowIndex);
+            var symbolFrame = symbol.GetFrame(SymbolFrameToShowIndex);
+
+            var smallerFrames = DynamicAnimManager.SplitFrameIntoParts(
+                symbolFrame,
+                textureWidth,
+                widthInCellsDelta,
+                middle_X: animSlicingSettingsItem.MiddlePart_X,
+                middle_Width: animSlicingSettingsItem.MiddlePart_Width,
+                fillingMethod: animSlicingSettingsItem.FillingMethod,
+                doFlipEverySecondIteration: animSlicingSettingsItem.DoFlipEverySecondIteration
+            );
+            var sprites = new List<Sprite>();
+            foreach (var frame in smallerFrames)
+            {
+                var sprite = DynamicAnimManager.GenerateSpriteForFrame(frame, texture);
+                sprites.Add(sprite);
+            }
+
+            return sprites;
+        }
+
+        private PGridPanel GenerateCaptionsForSprites(List<Sprite> sprites)
+        {
+            var gridPanelWithSprites = new PGridPanel() { DynamicSize = false };
+            for (var spriteIdx = 0; spriteIdx < sprites.Count; spriteIdx++)
+            {
+                int outputWidth = (int)(sprites[spriteIdx].rect.width / sprites[spriteIdx].pixelsPerUnit * 100);
+                gridPanelWithSprites.AddColumn(new GridColumnSpec(outputWidth, 100));
+            }
+            gridPanelWithSprites.AddRow(new GridRowSpec());
+
+            int columnIdx = -1;
+            for (var spriteIdx = 0; spriteIdx < sprites.Count; spriteIdx++)
+            {
+                columnIdx++;
+
+                var label = new PLabel() {  DynamicSize = false };
+                if (spriteIdx == 0)
+                {
+                    label.Text = "Left part";
+                }
+                else if (spriteIdx == sprites.Count - 1)
+                {
+                    label.Text = "Right part";
+                }
+                else
+                {
+                    label.Text = "Middle part";
+                }
+                gridPanelWithSprites.AddChild(label, new GridComponentSpec(0, columnIdx));
+            }
+
+            return gridPanelWithSprites;
+        }
+
+        private PGridPanel GenerateScreenComponentsForSprites(List<Sprite> sprites, bool doFlipEverySecondIteration)
+        {
+            var gridPanelWithSprites = new PGridPanel() { DynamicSize = false };
+            for (var spriteIdx = 0; spriteIdx < sprites.Count; spriteIdx++)
+            {
+                int outputWidth = (int)(sprites[spriteIdx].rect.width / sprites[spriteIdx].pixelsPerUnit * 100);
+                gridPanelWithSprites.AddColumn(new GridColumnSpec(outputWidth, 100));
+            }
+            gridPanelWithSprites.AddRow(new GridRowSpec(sprites[0].rect.height, 100));
+            int columnIdx = -1;
+            for (var spriteIdx = 0; spriteIdx < sprites.Count; spriteIdx++)
+            {
+                columnIdx++;
+
+                bool doFlip = doFlipEverySecondIteration
+                    && spriteIdx > 0 && spriteIdx < sprites.Count - 1
+                    && (spriteIdx % 2 == 0);
+
+                var ppanel = new PPanelWithFlippableImage()
+                {
+                    DynamicSize = false,
+                    FlexSize = new Vector2(100, 100),
+                    FlipByX = doFlip
+                };
+                ppanel.BackImage = sprites[spriteIdx];
+                ppanel.ImageMode = UnityEngine.UI.Image.Type.Sliced;
+                ppanel.BackColor = Color.white;
+
+                int outputWidth = (int)(sprites[spriteIdx].rect.width / sprites[spriteIdx].pixelsPerUnit);
+                int outputHeight = (int)(sprites[spriteIdx].rect.height);
+                //Debug.Log($"RectW = {sprites[spriteIdx].rect.width}, W = {outputWidth}, H = {outputHeight}, PPU = {sprites[spriteIdx].pixelsPerUnit}");
+                gridPanelWithSprites.AddChild(ppanel, new GridComponentSpec(0, columnIdx));
+            }
+
+            return gridPanelWithSprites;
+        }
+
         private void GenerateControlPanel()
         {
             var controlPanel = new PPanel("ControlPanel")
@@ -306,27 +528,18 @@ namespace ExtendedBuildingWidth
             cbShowTechName.OnChecked += OnChecked_ShowTechName;
             controlPanel.AddChild(cbShowTechName);
 
-            var configTable = DynamicBuildingsManager.GetBuildingConfigManager_ConfigTable();
-            var configNameToInstanceMapping = new Dictionary<string, IBuildingConfig>();
-            foreach (var cfg in configTable.Keys.ToList())
-            {
-                try
-                {
-                    configNameToInstanceMapping.Add(cfg.GetType().FullName, cfg);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning("ExtendedBuildingWidth WARNING - " + e.Message);
-                }
-            }
-
             _dialogBodyChild.AddChild(controlPanel);
         }
 
-        private void GenerateData()
+        private void GenerateInitialData()
         {
             _dialogData.Clear();
             var srcData = _modSettings.GetAnimSplittingSettingsList();
+            if (srcData.Count == 0)
+            {
+                return;
+            }    
+
             foreach (var entry in srcData)
             {
                 var rec = new EditAnimSlicingSettings_Item()
@@ -340,6 +553,9 @@ namespace ExtendedBuildingWidth
                 };
                 _dialogData.Add(rec);
             }
+
+            var firstRecord = srcData.FirstOrDefault();
+            CurrentConfigName = firstRecord.ConfigName;
         }
 
         private void OnDialogClosed(string option)
@@ -378,6 +594,8 @@ namespace ExtendedBuildingWidth
             if (int.TryParse(text, out var parsed))
             {
                 record.MiddlePart_X = parsed;
+                CurrentConfigName = record.TechName;
+                RebuildBodyAndShow();
             }
         }
 
@@ -391,6 +609,8 @@ namespace ExtendedBuildingWidth
             if (int.TryParse(text, out var parsed))
             {
                 record.MiddlePart_Width = parsed;
+                CurrentConfigName = record.TechName;
+                RebuildBodyAndShow();
             }
         }
 
@@ -406,6 +626,8 @@ namespace ExtendedBuildingWidth
                     return;
                 }
                 record.FillingMethod = (FillingMethod)index;
+                CurrentConfigName = record.TechName;
+                RebuildBodyAndShow();
             }
         }
 
@@ -419,6 +641,8 @@ namespace ExtendedBuildingWidth
             var record = _dialogData.Where(x => x.TechName == checkButton.name).FirstOrDefault();
 
             record.IsActive = (newState == 1);
+            CurrentConfigName = record.TechName;
+            RebuildBodyAndShow();
         }
 
         private void OnChecked_DoFlipEverySecondIteration(GameObject source, int state)
@@ -431,6 +655,8 @@ namespace ExtendedBuildingWidth
             var record = _dialogData.Where(x => x.TechName == checkButton.name).FirstOrDefault();
 
             record.DoFlipEverySecondTime = (newState == 1);
+            CurrentConfigName = record.TechName;
+            RebuildBodyAndShow();
         }
 
         private void OnChecked_ShowTechName(GameObject source, int state)
@@ -439,6 +665,14 @@ namespace ExtendedBuildingWidth
             PCheckBox.SetCheckState(source, newState);
             ShowTechName = (newState == 1);
 
+            RebuildBodyAndShow();
+        }
+        
+        private void OnConfigNameButton_Click(GameObject source)
+        {
+            var techName = source.name;
+
+            CurrentConfigName = techName;
             RebuildBodyAndShow();
         }
     }

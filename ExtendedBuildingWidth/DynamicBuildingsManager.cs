@@ -11,19 +11,7 @@ namespace ExtendedBuildingWidth
     {
         public static void RegisterDynamicBuildings_For_ExtendableConfigSettings()
         {
-            var configTable = GetBuildingConfigManager_ConfigTable();
-            var configNameToInstanceMapping = new Dictionary<string, IBuildingConfig>();
-            foreach (var cfg in configTable.Keys.ToList())
-            {
-                try
-                {
-                    configNameToInstanceMapping.Add(cfg.GetType().FullName, cfg);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning("ExtendedBuildingWidth WARNING - " + e.Message);
-                }
-            }
+            var configNameToInstanceMapping = ConfigMap;
 
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
@@ -46,7 +34,7 @@ namespace ExtendedBuildingWidth
                         continue;
                     }
 
-                    var originalDef = GetBuildingDefByConfig(config);
+                    var originalDef = ConfigToBuildingDefMap[config];
                     for (var width = configSettings.MinWidth; width <= configSettings.MaxWidth; width++)
                     {
                         if (width == originalDef.WidthInCells)
@@ -73,10 +61,10 @@ namespace ExtendedBuildingWidth
 
                             DynamicAnimManager.OverwriteAnimFiles(dynamicDef, dynamicAnimName);
                             DynamicAnimManager.SplitAnim(
-                                    dynamicDef, 
-                                    widthInCellsDelta, 
-                                    splittingSettingsItem.MiddlePart_X, 
-                                    splittingSettingsItem.MiddlePart_Width, 
+                                    dynamicDef.AnimFiles.FirstOrDefault(),
+                                    widthInCellsDelta,
+                                    splittingSettingsItem.MiddlePart_X,
+                                    splittingSettingsItem.MiddlePart_Width,
                                     splittingSettingsItem.FillingMethod,
                                     splittingSettingsItem.DoFlipEverySecondIteration
                                 );
@@ -139,11 +127,11 @@ namespace ExtendedBuildingWidth
                 var dynamicMethod_GetPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("GetPressurizedInfo");
                 var dynamicMethod_TryAddPressurizedInfo = dynamicType_PressurizedTuning.GetMethod("TryAddPressurizedInfo");
 
-                foreach(var originalDef in _originalDefToDynamicDefAndWidthMap.Keys)
+                foreach (var originalDef in OriginalDefToDynamicDefAndWidthMap.Keys)
                 {
                     bool methodTryAddPressurizedInfo_WasSuccessfullyCalledAtLeastOnce = false;
 
-                    foreach (var keyValuePair in _originalDefToDynamicDefAndWidthMap[originalDef])
+                    foreach (var keyValuePair in OriginalDefToDynamicDefAndWidthMap[originalDef])
                     {
                         var dynamicDef = keyValuePair.Value;
 
@@ -206,7 +194,7 @@ namespace ExtendedBuildingWidth
 
         private static BuildingDef CreateDynamicDef(IBuildingConfig config, int width)
         {
-            var originalDef = GetBuildingDefByConfig(config);
+            var originalDef = ConfigToBuildingDefMap[config];
 
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
@@ -279,7 +267,7 @@ namespace ExtendedBuildingWidth
             }
 
             var newLogicPorts = new List<LogicPorts.Port>();
-            foreach(var port in buildingDef.LogicInputPorts)
+            foreach (var port in buildingDef.LogicInputPorts)
             {
                 var newPort = port;
                 AdjustPortOffset(ref newPort.cellOffset, buildingDef.WidthInCells);
@@ -393,32 +381,26 @@ namespace ExtendedBuildingWidth
 
         private static void AddMapping(BuildingDef dynamicDef, BuildingDef originalDef)
         {
-            if (_dynamicDefToOriginalDefMap.ContainsKey(dynamicDef))
-            {
-                throw new Exception($"ExtendedBuildingWidth ERROR - 'DynamicDefToOriginalDefMap' already has key {dynamicDef.PrefabID}. How come?");
-            }
-            _dynamicDefToOriginalDefMap[dynamicDef] = originalDef;
+            DynamicDefToOriginalDefMap.Add(dynamicDef, originalDef);
 
-            if (!_originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef))
+            Dictionary<int, BuildingDef> widthToDynamicDefMap;
+            if (!OriginalDefToDynamicDefAndWidthMap.TryGetValue(originalDef, out widthToDynamicDefMap))
             {
-                _originalDefToDynamicDefAndWidthMap[originalDef] = new Dictionary<int, BuildingDef>();
+                OriginalDefToDynamicDefAndWidthMap.Add(originalDef, new Dictionary<int, BuildingDef>());
+                widthToDynamicDefMap = OriginalDefToDynamicDefAndWidthMap[originalDef];
             }
 
-            if (_originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(dynamicDef.WidthInCells))
-            {
-                throw new Exception($"ExtendedBuildingWidth ERROR - 'OriginalDefToDynamicDefAndWidthMap' already has key ({originalDef.PrefabID}, {dynamicDef.WidthInCells} + ). How come?");
-            }
-            _originalDefToDynamicDefAndWidthMap[originalDef][dynamicDef.WidthInCells] = dynamicDef;
+            widthToDynamicDefMap.Add(dynamicDef.WidthInCells, dynamicDef);
         }
 
         public static bool SwitchToPrevWidth(BuildingDef currentlySelectedDef)
         {
-            var originalDef = GetOriginalDefByDynamicDef(currentlySelectedDef);
+            var originalDef = DynamicDefToOriginalDefMap[currentlySelectedDef];
             if (!HasDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells - 1))
             {
                 return false;
             }
-            var shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells - 1);
+            var shiftedDef = OriginalDefToDynamicDefAndWidthMap[originalDef][currentlySelectedDef.WidthInCells - 1];
 
             SetActiveBuildingDef(shiftedDef);
             return true;
@@ -426,12 +408,12 @@ namespace ExtendedBuildingWidth
 
         public static bool SwitchToNextWidth(BuildingDef currentlySelectedDef)
         {
-            var originalDef = GetOriginalDefByDynamicDef(currentlySelectedDef);
+            var originalDef = DynamicDefToOriginalDefMap[currentlySelectedDef];
             if (!HasDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells + 1))
             {
                 return false;
             }
-            var shiftedDef = GetDynamicDefByOriginalDefAndWidth(originalDef, currentlySelectedDef.WidthInCells + 1);
+            var shiftedDef = OriginalDefToDynamicDefAndWidthMap[originalDef][currentlySelectedDef.WidthInCells + 1];
 
             SetActiveBuildingDef(shiftedDef);
             return true;
@@ -506,7 +488,7 @@ namespace ExtendedBuildingWidth
         /// </summary>
         private static void PlanScreen_OnSelectBuilding(BuildingDef dynamicDef)
         {
-            var originalDef = GetOriginalDefByDynamicDef(dynamicDef);
+            var originalDef = DynamicDefToOriginalDefMap[dynamicDef];
 
             // 'SelectedBuildingGameObject' should be set to null to avoid early exiting from the method (this field will be reset inside the method 'OnSelectBuilding').
             var selectedBuildingGameObject = Traverse.Create(PlanScreen.Instance).Property("SelectedBuildingGameObject").GetValue() as UnityEngine.GameObject;
@@ -523,29 +505,63 @@ namespace ExtendedBuildingWidth
         }
 
         public static string GetDynamicName(string origName, int width) => origName + "_width" + width.ToString();
-        public static Dictionary<IBuildingConfig, BuildingDef> GetBuildingConfigManager_ConfigTable() => _configTable;
-        public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => _originalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
-        public static bool IsDynamicallyCreated(BuildingDef buildingDef) => _dynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (_dynamicDefToOriginalDefMap[buildingDef] != buildingDef);
-        public static BuildingDef GetBuildingDefByConfig(IBuildingConfig config) => _configTable[config];
-        public static BuildingDef GetOriginalDefByDynamicDef(BuildingDef dynamicDef) => _dynamicDefToOriginalDefMap[dynamicDef];
-        public static BuildingDef GetDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => _originalDefToDynamicDefAndWidthMap[originalDef][defWidth];
-        public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => _originalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && _originalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
+
+        public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => OriginalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
+        public static bool IsDynamicallyCreated(BuildingDef buildingDef) => DynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (DynamicDefToOriginalDefMap[buildingDef] != buildingDef);
+        public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => OriginalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && OriginalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
         public static void AddConfigNameToAnimNameMap(string configName, string animName)
         {
-            if (!_configNameToAnimNameMapGlobal.ContainsKey(configName))
+            if (!ConfigNameToAnimNameMapGlobal.ContainsKey(configName))
             {
-                _configNameToAnimNameMapGlobal.Add(configName, animName);
+                ConfigNameToAnimNameMapGlobal.Add(configName, animName);
             }
         }
-        //public static string GetAnimName(string configName) => _configNameToAnimNameMapGlobal[configName];
-        //public static List<KeyValuePair<string, string>> GetAnimNames(string animName) => _configNameToAnimNameMapGlobal.Where(x => x.Value == animName).ToList();
-        //public static Dictionary<string, string> GetConfigNameToAnimNamesMap() => _configNameToAnimNameMapGlobal;
+        //public static string GetAnimName(string configName) => ConfigNameToAnimNameMapGlobal[configName];
+        //public static List<KeyValuePair<string, string>> GetAnimNames(string animName) => ConfigNameToAnimNameMapGlobal.Where(x => x.Value == animName).ToList();
+        //private static Dictionary<BuildingDef, IBuildingConfig> OriginalDefToConfigMap => ConfigToBuildingDefMap.ToDictionary(x => x.Value, y => y.Key);
 
-        private static Dictionary<IBuildingConfig, BuildingDef> _configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
-        //private static Dictionary<BuildingDef, IBuildingConfig> _originalDefToConfigMap = _configTable.ToDictionary(x => x.Value, y => y.Key);
-        private static Dictionary<BuildingDef, BuildingDef> _dynamicDefToOriginalDefMap = new Dictionary<BuildingDef, BuildingDef>();
-        private static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> _originalDefToDynamicDefAndWidthMap = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
-        private static Dictionary<string, string> _configNameToAnimNameMapGlobal = new Dictionary<string, string>();
+        private static Dictionary<IBuildingConfig, BuildingDef> _configToBuildingDefMap;
+        public static Dictionary<IBuildingConfig, BuildingDef> ConfigToBuildingDefMap
+        {
+            get
+            {
+                if (_configToBuildingDefMap == null)
+                {
+                    _configToBuildingDefMap = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
+                }
+                return _configToBuildingDefMap;
+            }
+        }
+
+        private static Dictionary<string, IBuildingConfig> _configNameToInstanceMap;
+        public static Dictionary<string, IBuildingConfig> ConfigMap
+        {
+            get
+            {
+                if (_configNameToInstanceMap == null)
+                {
+                    //_configNameToInstanceMap = ConfigToBuildingDefMap.Keys.ToDictionary(x => x.GetType().FullName, y => y);
+                    _configNameToInstanceMap = new Dictionary<string, IBuildingConfig>();
+
+                    foreach (var cfg in ConfigToBuildingDefMap.Keys.ToList())
+                    {
+                        try
+                        {
+                            _configNameToInstanceMap.Add(cfg.GetType().FullName, cfg);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogWarning("ExtendedBuildingWidth WARNING - " + e.Message);
+                        }
+                    }
+
+                }
+                return _configNameToInstanceMap;
+            }
+        }
+
+        public static Dictionary<BuildingDef, BuildingDef> DynamicDefToOriginalDefMap { get; } = new Dictionary<BuildingDef, BuildingDef>();
+        public static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> OriginalDefToDynamicDefAndWidthMap { get; } = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
+        public static Dictionary<string, string> ConfigNameToAnimNameMapGlobal { get; } = new Dictionary<string, string>();
     }
-
 }

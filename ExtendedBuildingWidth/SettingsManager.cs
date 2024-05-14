@@ -177,11 +177,11 @@ namespace ExtendedBuildingWidth
 
             try
             {
-                var allAvailableBuildingDefConfigs = DynamicBuildingsManager.GetBuildingConfigManager_ConfigTable().ToDictionary(x => x.Value.PrefabID, x => x.Key);
+                var buildingDefPrefabIdToConfigMap = DynamicBuildingsManager.ConfigToBuildingDefMap.ToDictionary(x => x.Value.PrefabID, x => x.Key);
 
                 var localizationStrings = FindAllSubclassesOf_STRINGS_BUILDINGS_PREFABS();
 
-                foreach (var buildingDefConfig in allAvailableBuildingDefConfigs)
+                foreach (var buildingDefConfig in buildingDefPrefabIdToConfigMap)
                 {
                     var prefabIdUpper = buildingDefConfig.Key.ToUpper();
                     var buildingDefType = buildingDefConfig.Value.GetType();

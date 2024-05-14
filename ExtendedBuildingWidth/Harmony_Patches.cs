@@ -140,7 +140,7 @@ namespace ExtendedBuildingWidth
 
             if (DynamicBuildingsManager.IsDynamicallyCreated(buildingDef))
             {
-                var originalDef = DynamicBuildingsManager.GetOriginalDefByDynamicDef(buildingDef);
+                var originalDef = DynamicBuildingsManager.DynamicDefToOriginalDefMap[buildingDef];
                 var originalBuilding = originalDef.BuildingComplete.GetComponent<Building>();
                 Traverse.Create(PlanScreen.Instance).Property("LastSelectedBuilding").SetValue(originalBuilding);
             }
