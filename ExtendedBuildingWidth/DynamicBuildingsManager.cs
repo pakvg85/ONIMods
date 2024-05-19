@@ -14,11 +14,17 @@ namespace ExtendedBuildingWidth
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
             var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNamesMap();
-            var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
 
-            IBuildingConfig config = null;
+            //var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
+            var splitSettingsList = dummyModSettings.GetAnimSplittingSettingsList();
+            Dictionary<string, List<AnimSplittingSettings>> splittingSettingsDict =
+                splitSettingsList.GroupBy(r => r.ConfigName).ToDictionary(t => t.Key, t => t.Select(r => r).ToList());
+
+            //var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
+
             foreach (var configSettings in configsToBeExtended)
             {
+                IBuildingConfig config;
                 if (!ConfigMap.TryGetValue(configSettings.ConfigName, out config))
                 {
                     Debug.Log($"ExtendedBuildingWidth WARNING - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
@@ -46,26 +52,22 @@ namespace ExtendedBuildingWidth
                         var widthInCells = dynamicDef.WidthInCells;
                         var widthInCellsDelta = widthInCells - originalWidth;
 
-                        bool isOldStyle = !splittingSettings.ContainsKey(configSettings.ConfigName)
-                                       || !configNameToAnimNamesMap.ContainsKey(configSettings.ConfigName)
-                                       || !splittingSettings[configSettings.ConfigName].IsActive
+                        bool isOldStyle = !configNameToAnimNamesMap.ContainsKey(configSettings.ConfigName)
+                                       || !splittingSettingsDict.ContainsKey(configSettings.ConfigName)
+                                       || !splittingSettingsDict[configSettings.ConfigName].Any(x => x.IsActive)
                                        || widthInCellsDelta <= 0;
 
                         if (!isOldStyle)
                         {
                             var origAnimName = configNameToAnimNamesMap[configSettings.ConfigName];
                             var dynamicAnimName = GetDynamicName(origAnimName, widthInCells);
-                            var splittingSettingsItem = splittingSettings[configSettings.ConfigName];
-
                             DynamicAnimManager.OverwriteAnimFiles(dynamicDef, dynamicAnimName);
+
+                            var splittingSettingsItems = splittingSettingsDict[configSettings.ConfigName];
                             DynamicAnimManager.SplitAnim(
-                                    dynamicDef.AnimFiles.FirstOrDefault(),
-                                    widthInCellsDelta,
-                                    splittingSettingsItem.MiddlePart_X,
-                                    splittingSettingsItem.MiddlePart_Width,
-                                    splittingSettingsItem.FillingMethod,
-                                    splittingSettingsItem.DoFlipEverySecondIteration
-                                );
+                                animFile: dynamicDef.AnimFiles.First(),
+                                widthInCellsDelta: widthInCellsDelta,
+                                settingsItems: splittingSettingsItems);
                         }
 
                         RegisterEverythingElse(dynamicDef, originalDef, config);
@@ -76,6 +78,12 @@ namespace ExtendedBuildingWidth
                             DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingPreview, widthInCells, originalWidth, configSettings.AnimStretchModifier);
                             DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingUnderConstruction, widthInCells, originalWidth, configSettings.AnimStretchModifier);
                         }
+                        //else
+                        //{
+                        //    var animController = dynamicDef.BuildingComplete.GetComponent<KBatchedAnimController>();
+                        //    var batch = animController.GetBatch();
+                        //    animController.SetDirty();
+                        //}
 
                         AddMapping(dynamicDef, originalDef);
                     }
@@ -525,7 +533,11 @@ namespace ExtendedBuildingWidth
             {
                 if (_configToBuildingDefMap == null)
                 {
-                    _configToBuildingDefMap = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
+                    var configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
+                    //if (configTable.Count > 0)
+                    //{
+                        _configToBuildingDefMap = configTable;
+                    //}
                 }
                 return _configToBuildingDefMap;
             }

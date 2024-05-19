@@ -10,21 +10,20 @@ namespace ExtendedBuildingWidth
     {
         private class AddRemoveDialog_Item
         {
-            public string TechName { get; set; }
+            public string ConfigName { get; set; }
             public int IsChecked { get; set; }
             public string Caption { get; set; }
         }
 
-        private class PPanelWithClearableChildren : PPanel
-        {
-            public PPanelWithClearableChildren(string name) : base(name) { }
-            public void ClearChildren() => base.children.Clear();
-        }
-
+        private PDialog _pDialog = null;
+        private PPanel _dialogBody = null;
+        private PPanelWithClearableChildren _dialogBodyChild = null;
+        private KScreen _componentScreen = null;
         private readonly List<AddRemoveDialog_Item> _dialogData = new List<AddRemoveDialog_Item>();
         private readonly List<AddRemoveDialog_Item> _dialogData_Filtered = new List<AddRemoveDialog_Item>();
         private readonly List<AddRemoveDialog_Item> _dialogData_Filtered_OnPage = new List<AddRemoveDialog_Item>();
         private readonly Dictionary<string, AddRemoveDialog_Item> _modifiedItems = new Dictionary<string, AddRemoveDialog_Item>();
+        private readonly Dialog_EditConfigJson _dialog_Parent;
 
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
@@ -34,25 +33,18 @@ namespace ExtendedBuildingWidth
         const int BottomOffset = 7;
         const int SpacingInPixels = 7;
 
-        private PDialog _addRemoveDialog_PDialog = null;
-        private PPanel _addRemoveDialog_BodyPanel = null;
-        private PPanelWithClearableChildren _addRemoveDialog_BodyPanelContents = null;
-        private KScreen _componentScreen_AddRemoveRecordsDialog = null;
-
-        private int GetPageNumberByLine(int lineNumber) => (lineNumber - 1) / _recordsPerPage + 1;
+        private int GetPageNumberByLine(int lineNumber) => (lineNumber - 1) / RecordsPerPage + 1;
         const int MinAvailablePageNumber = 1;
         private int MaxAvailablePageNumber => GetPageNumberByLine(_dialogData_Filtered.Count);
 
-        private int _currentPage = 1;
-        private int _recordsPerPage = 30;
-        private string _filterText = string.Empty;
-        public bool ShowTechName = false;
+        public int CurrentPage { get; set; } = 1;
+        public int RecordsPerPage { get; set; } = 30;
+        public string FilterText { get; set; } = string.Empty;
+        public bool ShowTechName { get; set; } = false;
 
-        private readonly Dialog_EditConfigJson _dialog_EditConfigJson;
-
-        public Dialog_AddRemoveRecords(Dialog_EditConfigJson dialog_EditConfigJson)
+        public Dialog_AddRemoveRecords(Dialog_EditConfigJson dialog_Parent)
         {
-            _dialog_EditConfigJson = dialog_EditConfigJson;
+            _dialog_Parent = dialog_Parent;
         }
 
         public void CreateAndShow(object obj)
@@ -61,21 +53,21 @@ namespace ExtendedBuildingWidth
             {
                 Title = "Add New Records",
                 DialogClosed = OnDialogClosed,
-                Size = new Vector2 { x = 800, y = 600 },
-                MaxSize = new Vector2 { x = 800, y = 600 },
+                Size = new Vector2 { x = 1000, y = 700 },
+                MaxSize = new Vector2 { x = 1000, y = 700 },
                 SortKey = 300.0f
             }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
             .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
 
-            _componentScreen_AddRemoveRecordsDialog = null;
-            _addRemoveDialog_PDialog = dialog;
-            _addRemoveDialog_BodyPanel = dialog.Body;
-            _addRemoveDialog_BodyPanelContents = null;
-            _filterText = string.Empty;
-            ShowTechName = _dialog_EditConfigJson.ShowTechName;
+            _componentScreen = null;
+            _pDialog = dialog;
+            _dialogBody = dialog.Body;
+            _dialogBodyChild = null;
+            FilterText = string.Empty;
+            ShowTechName = _dialog_Parent.ShowTechName;
             _modifiedItems.Clear();
 
-            _currentPage = MinAvailablePageNumber;
+            CurrentPage = MinAvailablePageNumber;
 
             RebuildAndShow(showFirstTime: true);
         }
@@ -84,7 +76,7 @@ namespace ExtendedBuildingWidth
         {
             if (!showFirstTime)
             {
-                _componentScreen_AddRemoveRecordsDialog.Deactivate();
+                _componentScreen.Deactivate();
             }
             if (showFirstTime)
             {
@@ -96,23 +88,23 @@ namespace ExtendedBuildingWidth
             GenerateControlPanel();
             GenerateRecordsPanel();
 
-            _componentScreen_AddRemoveRecordsDialog = null;
-            var isBuilt = _addRemoveDialog_PDialog.Build().TryGetComponent<KScreen>(out _componentScreen_AddRemoveRecordsDialog);
+            _componentScreen = null;
+            var isBuilt = _pDialog.Build().TryGetComponent<KScreen>(out _componentScreen);
             if (isBuilt)
             {
-                _componentScreen_AddRemoveRecordsDialog.Activate();
+                _componentScreen.Activate();
             }
         }
 
         private void ClearContents()
         {
-            if (_addRemoveDialog_BodyPanelContents == null)
+            if (_dialogBodyChild == null)
             {
-                _addRemoveDialog_BodyPanelContents = new PPanelWithClearableChildren("AddRemoveDialog_RecordsPanel");
-                _addRemoveDialog_BodyPanel.AddChild(_addRemoveDialog_BodyPanelContents);
+                _dialogBodyChild = new PPanelWithClearableChildren("AddRemoveDialog_RecordsPanel");
+                _dialogBody.AddChild(_dialogBodyChild);
             }
 
-            _addRemoveDialog_BodyPanelContents.ClearChildren();
+            _dialogBodyChild.ClearChildren();
         }
 
         /// <summary>
@@ -124,63 +116,63 @@ namespace ExtendedBuildingWidth
             _dialogData.Clear();
 
             var allBuildings = SettingsManager.ListOfAllBuildings;
-            var allBuildings_Dict = allBuildings.ToDictionary(x => x.TechName, y => y);
-            var checkedTechNames = _dialog_EditConfigJson.GetTechNames();
-            var techNames_Sorted = new SortedSet<string>(checkedTechNames);
-            var uncheckedTechNames = allBuildings.Where(x => !techNames_Sorted.Contains(x.TechName)).Select(x => x.TechName).ToList();
+            var dict = allBuildings.ToDictionary(x => x.ConfigName, y => y);
+            var checkedConfigNames = _dialog_Parent.GetConfigNames();
+            var configNames_Sorted = new SortedSet<string>(checkedConfigNames);
+            var uncheckedConfigNames = allBuildings.Where(x => !configNames_Sorted.Contains(x.ConfigName)).Select(x => x.ConfigName).ToList();
 
-            foreach (var techName in checkedTechNames)
+            foreach (var configName in checkedConfigNames)
             {
                 string caption = string.Empty;
-                if (allBuildings_Dict.TryGetValue(techName, out var dictEntry))
+                if (dict.TryGetValue(configName, out var dictEntry))
                 {
                     caption = dictEntry.Caption;
                 }
                 if (string.IsNullOrEmpty(caption))
                 {
-                    caption = techName;
+                    caption = configName;
                 }
 
                 var rec = new AddRemoveDialog_Item()
                 {
                     IsChecked = 1,
-                    TechName = techName,
+                    ConfigName = configName,
                     Caption = caption
                 };
                 _dialogData.Add(rec);
             }
 
-            foreach (var techName in uncheckedTechNames)
+            foreach (var configName in uncheckedConfigNames)
             {
                 string caption = string.Empty;
-                if (allBuildings_Dict.TryGetValue(techName, out var dictEntry))
+                if (dict.TryGetValue(configName, out var dictEntry))
                 {
                     caption = dictEntry.Caption;
                 }
                 if (string.IsNullOrEmpty(caption))
                 {
-                    caption = techName;
+                    caption = configName;
                 }
 
                 var rec = new AddRemoveDialog_Item()
                 {
                     IsChecked = 0,
-                    TechName = techName,
+                    ConfigName = configName,
                     Caption = caption
                 };
                 _dialogData.Add(rec);
             }
         }
-
+         
         private void GenerateFilteredData()
         {
             _dialogData_Filtered.Clear();
             foreach (var entry in _dialogData)
             {
-                if (!string.IsNullOrEmpty(_filterText))
+                if (!string.IsNullOrEmpty(FilterText))
                 {
-                    if ((string.IsNullOrEmpty(entry.TechName) || !entry.TechName.ToLower().Contains(_filterText.ToLower()))
-                        && (string.IsNullOrEmpty(entry.Caption) || !entry.Caption.ToLower().Contains(_filterText.ToLower()))
+                    if ((string.IsNullOrEmpty(entry.ConfigName) || !entry.ConfigName.ToLower().Contains(FilterText.ToLower()))
+                        && (string.IsNullOrEmpty(entry.Caption) || !entry.Caption.ToLower().Contains(FilterText.ToLower()))
                        )
                     {
                         continue;
@@ -198,7 +190,7 @@ namespace ExtendedBuildingWidth
             }
             else
             {
-                var sortedList = _dialogData_Filtered.OrderBy(x => x.TechName).OrderByDescending(y => y.IsChecked).ToList();
+                var sortedList = _dialogData_Filtered.OrderBy(x => x.ConfigName).OrderByDescending(y => y.IsChecked).ToList();
                 _dialogData_Filtered.Clear();
                 _dialogData_Filtered.AddRange(sortedList);
             }
@@ -210,7 +202,7 @@ namespace ExtendedBuildingWidth
                 iterScreenField++;
 
                 int currPage = GetPageNumberByLine(iterScreenField);
-                if (currPage != _currentPage)
+                if (currPage != CurrentPage)
                 {
                     continue;
                 }
@@ -220,39 +212,36 @@ namespace ExtendedBuildingWidth
 
         private void GenerateControlPanel()
         {
+            var addRemoveDialogSettingsPanel = new PPanel("AddRemoveDialogSettingsPanel") { Direction = PanelDirection.Horizontal, Spacing = SpacingInPixels };
+
             var cbShowTechName = new PCheckBox() { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
             cbShowTechName.InitialState = ShowTechName ? 1 : 0;
             cbShowTechName.Text = "Show tech names";
-            cbShowTechName.OnChecked += OnChecked_ShowTechName;
+            cbShowTechName.OnChecked = OnChecked_ShowTechName;
+            addRemoveDialogSettingsPanel.AddChild(cbShowTechName);
 
-            var lbLinesPerPage = new PLabel("LinesPerPageLabel");
-            lbLinesPerPage.Text = "Page size:";
+            addRemoveDialogSettingsPanel.AddChild(new PLabel("LinesPerPageLabel") { Text = "Page size:" });
 
             var txtLinesPerPage = new PTextField("LinesPerPageTxt");
-            txtLinesPerPage.Text = _recordsPerPage.ToString();
+            txtLinesPerPage.Text = RecordsPerPage.ToString();
             txtLinesPerPage.MinWidth = 50;
-            txtLinesPerPage.OnTextChanged += OnTextChanged_LinesPerPage;
+            txtLinesPerPage.OnTextChanged = OnTextChanged_LinesPerPage;
+            addRemoveDialogSettingsPanel.AddChild(txtLinesPerPage);
 
-            var lbFilter = new PLabel("FilterRecordsLabel");
-            lbFilter.Text = "Filter:";
+            addRemoveDialogSettingsPanel.AddChild(new PLabel("FilterRecordsLabel") { Text = "Filter:" });
 
             var txtFilter = new PTextField("TextFilterRecords");
-            txtFilter.Text = _filterText;
+            txtFilter.Text = FilterText;
             txtFilter.MinWidth = 200;
-            txtFilter.OnTextChanged += OnTextChanged_Filter;
+            txtFilter.OnTextChanged = OnTextChanged_Filter;
+            addRemoveDialogSettingsPanel.AddChild(txtFilter);
 
             var btnRefresh = new PButton("BtnFilterRecords") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
             btnRefresh.Text = "Refresh";
-            btnRefresh.OnClick += OnClick_Refresh;
-
-            var addRemoveDialogSettingsPanel = new PPanel("AddRemoveDialogSettingsPanel") { Direction = PanelDirection.Horizontal, Spacing = SpacingInPixels };
-            addRemoveDialogSettingsPanel.AddChild(cbShowTechName);
-            addRemoveDialogSettingsPanel.AddChild(lbLinesPerPage);
-            addRemoveDialogSettingsPanel.AddChild(txtLinesPerPage);
-            addRemoveDialogSettingsPanel.AddChild(lbFilter);
-            addRemoveDialogSettingsPanel.AddChild(txtFilter);
+            btnRefresh.OnClick = OnClick_Refresh;
             addRemoveDialogSettingsPanel.AddChild(btnRefresh);
-            _addRemoveDialog_BodyPanelContents.AddChild(addRemoveDialogSettingsPanel);
+
+            _dialogBodyChild.AddChild(addRemoveDialogSettingsPanel);
 
             var pageButtonsPanel = new PPanel("PageButtonsPanel")
             {
@@ -261,15 +250,11 @@ namespace ExtendedBuildingWidth
                 FlexSize = Vector2.right
             };
 
-            var prevPageBtn = new PButton("BtnPrevPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-            prevPageBtn.Text = "< Back";
-            prevPageBtn.OnClick += OnClick_PrevPage;
-            var nextPageBtn = new PButton("BtnNextPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-            nextPageBtn.Text = "Next >";
-            nextPageBtn.OnClick += OnClick_NextPage;
-
             if (MaxAvailablePageNumber > 1)
             {
+                var prevPageBtn = new PButton("BtnPrevPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
+                prevPageBtn.Text = "< Back";
+                prevPageBtn.OnClick = OnClick_PrevPage;
                 pageButtonsPanel.AddChild(prevPageBtn);
             }
 
@@ -277,9 +262,9 @@ namespace ExtendedBuildingWidth
             for (int i = 1; i <= MaxAvailablePageNumber; i++)
             {
                 if (
-                       _currentPage <= 3 && (i <= 6 || i == MaxAvailablePageNumber)
-                    || _currentPage > 3 && _currentPage < MaxAvailablePageNumber - 3 && (i == MinAvailablePageNumber || i == MaxAvailablePageNumber || Math.Abs(i - _currentPage) < 3)
-                    || _currentPage >= MaxAvailablePageNumber - 3 && (i == MinAvailablePageNumber || i >= MaxAvailablePageNumber - 6 + 1)
+                       CurrentPage <= 3 && (i <= 6 || i == MaxAvailablePageNumber)
+                    || CurrentPage > 3 && CurrentPage < MaxAvailablePageNumber - 3 && (i == MinAvailablePageNumber || i == MaxAvailablePageNumber || Math.Abs(i - CurrentPage) < 3)
+                    || CurrentPage >= MaxAvailablePageNumber - 3 && (i == MinAvailablePageNumber || i >= MaxAvailablePageNumber - 6 + 1)
                 )
                 {
                     tooMuchPages = false;
@@ -288,9 +273,7 @@ namespace ExtendedBuildingWidth
                 {
                     if (!tooMuchPages)
                     {
-                        var lbTooMuch = new PLabel();
-                        lbTooMuch.Text = "...";
-                        pageButtonsPanel.AddChild(lbTooMuch);
+                        pageButtonsPanel.AddChild(new PLabel() { Text = "..." });
                         tooMuchPages = true;
                     }
                     continue;
@@ -301,8 +284,8 @@ namespace ExtendedBuildingWidth
                     Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset)
                 };
                 pageNumberBtn.Text = i.ToString();
-                pageNumberBtn.OnClick += OnClick_PageNumber;
-                if (i == _currentPage)
+                pageNumberBtn.OnClick = OnClick_PageNumber;
+                if (i == CurrentPage)
                 {
                     pageNumberBtn.Color = ScriptableObject.CreateInstance<ColorStyleSetting>();
                     pageNumberBtn.Color.hoverColor = Color.magenta;
@@ -313,10 +296,13 @@ namespace ExtendedBuildingWidth
 
             if (MaxAvailablePageNumber > 1)
             {
+                var nextPageBtn = new PButton("BtnNextPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
+                nextPageBtn.Text = "Next >";
+                nextPageBtn.OnClick = OnClick_NextPage;
                 pageButtonsPanel.AddChild(nextPageBtn);
             }
 
-            _addRemoveDialog_BodyPanelContents.AddChild(pageButtonsPanel);
+            _dialogBodyChild.AddChild(pageButtonsPanel);
         }
 
         private void GenerateRecordsPanel()
@@ -335,17 +321,17 @@ namespace ExtendedBuildingWidth
                 contents.AddRow(new GridRowSpec());
                 contents.AddColumn(new GridColumnSpec(700));
 
-                var lCheckbox = new PCheckBox(name: entry.TechName);
+                var lCheckbox = new PCheckBox(name: entry.ConfigName);
                 lCheckbox.InitialState = entry.IsChecked;
 
                 if (!ShowTechName)
                 {
                     lCheckbox.Text = entry.Caption;
-                    lCheckbox.ToolTip = entry.TechName;
+                    lCheckbox.ToolTip = entry.ConfigName;
                 }
                 else
                 {
-                    lCheckbox.Text = entry.TechName;
+                    lCheckbox.Text = entry.ConfigName;
                     lCheckbox.ToolTip = entry.Caption;
                 }
 
@@ -365,23 +351,18 @@ namespace ExtendedBuildingWidth
                 AlwaysShowHorizontal = false,
                 AlwaysShowVertical = false
             };
-            _addRemoveDialog_BodyPanelContents.AddChild(scrollPane);
+            _dialogBodyChild.AddChild(scrollPane);
         }
 
-        private void OnChecked_RecordItem(GameObject realized, int state)
+        private bool TryGetRecord(string name, out AddRemoveDialog_Item record)
         {
-            int newState = (state + 1) % 2;
-            PCheckBox.SetCheckState(realized, newState);
-            var checkButton = realized.GetComponentInChildren<MultiToggle>();
-            var techName = checkButton.name;
-
-            var record = _dialogData_Filtered_OnPage.Where(x => x.TechName == checkButton.name).FirstOrDefault();
-
-            if (!_modifiedItems.ContainsKey(techName))
+            if (!_dialogData_Filtered_OnPage.Any(x => x.ConfigName == name))
             {
-                _modifiedItems.Add(techName, record);
+                record = null;
+                return false;
             }
-            _modifiedItems[techName].IsChecked = newState;
+            record = _dialogData.Where(x => x.ConfigName == name).First();
+            return true;
         }
 
         private void OnDialogClosed(string option)
@@ -390,23 +371,38 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-
-            _dialog_EditConfigJson.ShowTechName = ShowTechName;
+            _dialog_Parent.ShowTechName = ShowTechName;
             var addRemoveRecords = new List<Tuple<string, bool>>();
             foreach (var entry in _modifiedItems.Values)
             {
-                addRemoveRecords.Add(new Tuple<string, bool>(entry.TechName, (entry.IsChecked == 1)));
+                addRemoveRecords.Add(new Tuple<string, bool>(entry.ConfigName, (entry.IsChecked == 1)));
             }
-            _dialog_EditConfigJson.ApplyChanges(addRemoveRecords);
+            _dialog_Parent.ApplyChanges(addRemoveRecords);
+            _dialog_Parent.RebuildBodyAndShow();
+        }
 
-            _dialog_EditConfigJson.RebuildBodyAndShow();
+        private void OnChecked_RecordItem(GameObject source, int state)
+        {
+            int newState = (state + 1) % 2;
+            PCheckBox.SetCheckState(source, newState);
+            var checkButton = source.GetComponentInChildren<MultiToggle>();
+            var configName = checkButton.name;
+            if (!TryGetRecord(configName, out var record))
+            {
+                return;
+            }
+            if (!_modifiedItems.ContainsKey(configName))
+            {
+                _modifiedItems.Add(configName, record);
+            }
+            _modifiedItems[configName].IsChecked = newState;
         }
 
         private void OnTextChanged_LinesPerPage(GameObject source, string text)
         {
             if (int.TryParse(text, out var count))
             {
-                _recordsPerPage = count;
+                RecordsPerPage = count;
             }
         }
 
@@ -415,9 +411,7 @@ namespace ExtendedBuildingWidth
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
             ShowTechName = (newState == 1);
-
-            _currentPage = MinAvailablePageNumber;
-
+            CurrentPage = MinAvailablePageNumber;
             RebuildAndShow();
         }
 
@@ -428,9 +422,8 @@ namespace ExtendedBuildingWidth
                 int parsedInt = 0;
                 if (int.TryParse(source.name.Split('_')[1], out parsedInt))
                 {
-                    _currentPage = parsedInt;
+                    CurrentPage = parsedInt;
                 }
-
                 RebuildAndShow();
             }
             catch (Exception e)
@@ -441,36 +434,32 @@ namespace ExtendedBuildingWidth
 
         private void OnClick_PrevPage(GameObject source)
         {
-            if (_currentPage <= MinAvailablePageNumber)
+            if (CurrentPage <= MinAvailablePageNumber)
             {
                 return;
             }
-
-            _currentPage--;
-
+            CurrentPage--;
             RebuildAndShow();
         }
 
         private void OnClick_NextPage(GameObject source)
         {
-            if (_currentPage >= MaxAvailablePageNumber)
+            if (CurrentPage >= MaxAvailablePageNumber)
             {
                 return;
             }
-
-            _currentPage++;
-
+            CurrentPage++;
             RebuildAndShow();
         }
 
         private void OnTextChanged_Filter(GameObject source, string text)
         {
-            _filterText = text;
+            FilterText = text;
         }
 
         private void OnClick_Refresh(GameObject source)
         {
-            _currentPage = MinAvailablePageNumber;
+            CurrentPage = MinAvailablePageNumber;
 
             RebuildAndShow();
         }

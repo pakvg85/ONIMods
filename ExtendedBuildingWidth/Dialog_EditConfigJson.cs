@@ -9,18 +9,18 @@ namespace ExtendedBuildingWidth
     {
         private class EditConfigDialog_Item
         {
-            public string TechName { get; set; }
+            public string ConfigName { get; set; }
             public int MinWidth { get; set; }
             public int MaxWidth { get; set; }
             public float AnimStretchModifier { get; set; }
+            //public bool IsSelected { get; set; }
         }
 
-        private readonly List<EditConfigDialog_Item> _dialogData = new List<EditConfigDialog_Item>();
-
+        private PDialog _pDialog = null;
+        private PPanel _dialogBody = null;
         private PPanel _dialogBodyChild = null;
-        private PPanel _configJsonDialogBody = null;
-        private KScreen _componentScreenEditConfig = null;
-        private PDialog _editConfigJson_PDialog = null;
+        private KScreen _componentScreen = null;
+        private readonly List<EditConfigDialog_Item> _dialogData = new List<EditConfigDialog_Item>();
 
         const string DialogId = "EditConfigJsonDialog";
         const string DialogTitle = "Edit Config Json";
@@ -44,16 +44,16 @@ namespace ExtendedBuildingWidth
             {
                 Title = DialogTitle,
                 DialogClosed = OnDialogClosed,
-                Size = new Vector2 { x = 800, y = 600 },
-                MaxSize = new Vector2 { x = 800, y = 600 },
+                Size = new Vector2 { x = 1000, y = 700 },
+                MaxSize = new Vector2 { x = 1000, y = 700 },
                 SortKey = 200.0f
             }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
             .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
 
             GenerateData();
 
-            _editConfigJson_PDialog = dialog;
-            _configJsonDialogBody = dialog.Body;
+            _pDialog = dialog;
+            _dialogBody = dialog.Body;
 
             RebuildBodyAndShow(showFirstTime: true);
         }
@@ -62,33 +62,33 @@ namespace ExtendedBuildingWidth
         {
             if (!showFirstTime)
             {
-                _componentScreenEditConfig.Deactivate();
+                _componentScreen.Deactivate();
             }
 
             ClearContents();
             GenerateRecordsPanel();
             GenerateControlPanel();
 
-            _configJsonDialogBody.AddChild(_dialogBodyChild);
+            _dialogBody.AddChild(_dialogBodyChild);
 
-            _componentScreenEditConfig = null;
-            var isBuilt = _editConfigJson_PDialog.Build().TryGetComponent<KScreen>(out _componentScreenEditConfig);
+            _componentScreen = null;
+            var isBuilt = _pDialog.Build().TryGetComponent<KScreen>(out _componentScreen);
             if (isBuilt)
             {
-                _componentScreenEditConfig.Activate();
+                _componentScreen.Activate();
             }
         }
 
-        public List<string> GetTechNames()
+        public List<string> GetConfigNames()
         {
-            return _dialogData.Select(d => d.TechName).ToList();
+            return _dialogData.Select(d => d.ConfigName).ToList();
         }
 
         public void ApplyChanges(ICollection<Tuple<string, bool>> modifiedRecords)
         {
             foreach (var entry in modifiedRecords)
             {
-                var existingRecord = _dialogData.FirstOrDefault(x => x.TechName == entry.first);
+                TryGetRecord(entry.first, out var existingRecord);
 
                 if (!entry.second)
                 {
@@ -103,7 +103,7 @@ namespace ExtendedBuildingWidth
                     {
                         var newRec = new EditConfigDialog_Item()
                         {
-                            TechName = entry.first,
+                            ConfigName = entry.first,
                             MinWidth = SettingsManager.DefaultMinWidth,
                             MaxWidth = SettingsManager.DefaultMaxWidth,
                             AnimStretchModifier = SettingsManager.DefaultAnimStretchModifier
@@ -118,7 +118,7 @@ namespace ExtendedBuildingWidth
         {
             if (_dialogBodyChild != null)
             {
-                _configJsonDialogBody.RemoveChild(_dialogBodyChild);
+                _dialogBody.RemoveChild(_dialogBodyChild);
             }
             _dialogBodyChild = new PPanel("DialogBodyChild");
         }
@@ -127,86 +127,95 @@ namespace ExtendedBuildingWidth
         {
             var tableTitlesPanel = new PGridPanel(DialogBodyGridPanelId) { Margin = new RectOffset(10, 40, 10, 0) };
             tableTitlesPanel.AddColumn(new GridColumnSpec(440));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
+            //tableTitlesPanel.AddColumn(new GridColumnSpec(80));
             tableTitlesPanel.AddColumn(new GridColumnSpec(80));
             tableTitlesPanel.AddColumn(new GridColumnSpec(100));
+            //tableTitlesPanel.AddColumn(new GridColumnSpec(80));
             tableTitlesPanel.AddRow(new GridRowSpec());
+            //tableTitlesPanel.AddRow(new GridRowSpec());
 
             int iRow = 0;
-            var lbConfigName = new PLabel();
-            lbConfigName.Text = "Config name";
-            tableTitlesPanel.AddChild(lbConfigName, new GridComponentSpec(iRow, 0));
-            var lbMinWidth = new PLabel();
-            lbMinWidth.Text = "Min width";
-            tableTitlesPanel.AddChild(lbMinWidth, new GridComponentSpec(iRow, 1));
-            var lbMaxWidth = new PLabel();
-            lbMaxWidth.Text = "Max width";
-            tableTitlesPanel.AddChild(lbMaxWidth, new GridComponentSpec(iRow, 2));
-            var lbStretchKoef = new PLabel();
-            lbStretchKoef.Text = "Stretch koef";
-            tableTitlesPanel.AddChild(lbStretchKoef, new GridComponentSpec(iRow, 3));
+            int iCol = -1;
+            tableTitlesPanel.AddChild(new PLabel() { Text = "Config name" }, new GridComponentSpec(iRow, ++iCol));
+            //tableTitlesPanel.AddChild(new PLabel() { Text = "Min width" }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "Max width" }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "Stretch koef" }, new GridComponentSpec(iRow, ++iCol));
+            //tableTitlesPanel.AddChild(new PLabel() { Text = "Select" }, new GridComponentSpec(iRow, ++iCol));
+            //tableTitlesPanel.AddChild(new PLabel() { Text = "to delete" }, new GridComponentSpec(iRow + 1, iCol));
 
             _dialogBodyChild.AddChild(tableTitlesPanel);
 
             var gridPanel = new PGridPanel(DialogBodyGridPanelId) { Margin = new RectOffset(10, 40, 10, 10) };
             gridPanel.AddColumn(new GridColumnSpec(440));
-            gridPanel.AddColumn(new GridColumnSpec(80));
+            //gridPanel.AddColumn(new GridColumnSpec(80));
             gridPanel.AddColumn(new GridColumnSpec(80));
             gridPanel.AddColumn(new GridColumnSpec(100));
-
+            //gridPanel.AddColumn(new GridColumnSpec(80));
             foreach (var entry in _dialogData)
             {
                 gridPanel.AddRow(new GridRowSpec());
             }
 
-            var dict = SettingsManager.ListOfAllBuildings.ToDictionary(x => x.TechName, y => y);
+            var dict = SettingsManager.ListOfAllBuildings.ToDictionary(x => x.ConfigName, y => y);
 
             iRow = -1;
             foreach (var entry in _dialogData)
             {
-                iRow++;
+                ++iRow;
+                iCol = -1;
 
                 string configCaption = string.Empty;
-                if (dict.TryGetValue(entry.TechName, out var buildingDescription))
+                if (dict.TryGetValue(entry.ConfigName, out var buildingDescription))
                 {
                     configCaption = buildingDescription.Caption;
                 }
                 if (string.IsNullOrEmpty(configCaption))
                 {
-                    configCaption = entry.TechName;
+                    configCaption = entry.ConfigName;
                 }
-
-                var bn = new PLabel(entry.TechName);
+                var bn = new PLabel(entry.ConfigName);
                 if (!ShowTechName)
                 {
                     bn.Text = configCaption;
-                    bn.ToolTip = entry.TechName;
+                    bn.ToolTip = entry.ConfigName;
                 }
                 else
                 {
-                    bn.Text = entry.TechName;
+                    bn.Text = entry.ConfigName;
                     bn.ToolTip = configCaption;
                 }
+                gridPanel.AddChild(bn, new GridComponentSpec(iRow, ++iCol) { Alignment = TextAnchor.MiddleLeft });
 
-                gridPanel.AddChild(bn, new GridComponentSpec(iRow, 0) { Alignment = TextAnchor.MiddleLeft });
+                //var minW = new PTextField(entry.ConfigName)
+                //{
+                //    Text = entry.MinWidth.ToString(),
+                //    OnTextChanged = OnTextChanged_MinWidth,
+                //    MinWidth = 60
+                //};
+                //gridPanel.AddChild(minW, new GridComponentSpec(iRow, ++iCol));
 
-                var minW = new PTextField(entry.TechName);
-                minW.Text = entry.MinWidth.ToString();
-                minW.OnTextChanged += OnTextChanged_MinWidth;
-                minW.MinWidth = 60;
-                gridPanel.AddChild(minW, new GridComponentSpec(iRow, 1));
+                var maxW = new PTextField(entry.ConfigName)
+                {
+                    Text = entry.MaxWidth.ToString(),
+                    OnTextChanged = OnTextChanged_MaxWidth,
+                    MinWidth = 60
+                };
+                gridPanel.AddChild(maxW, new GridComponentSpec(iRow, ++iCol));
 
-                var maxW = new PTextField(entry.TechName);
-                maxW.Text = entry.MaxWidth.ToString();
-                maxW.OnTextChanged += OnTextChanged_MaxWidth;
-                maxW.MinWidth = 60;
-                gridPanel.AddChild(maxW, new GridComponentSpec(iRow, 2));
+                var strMdf = new PTextField(entry.ConfigName)
+                {
+                    Text = entry.AnimStretchModifier.ToString(),
+                    OnTextChanged = OnTextChanged_AnimStretchModifier,
+                    MinWidth = 90
+                };
+                gridPanel.AddChild(strMdf, new GridComponentSpec(iRow, ++iCol));
 
-                var strMdf = new PTextField(entry.TechName);
-                strMdf.Text = entry.AnimStretchModifier.ToString();
-                strMdf.OnTextChanged += OnTextChanged_AnimStretchModifier;
-                strMdf.MinWidth = 90;
-                gridPanel.AddChild(strMdf, new GridComponentSpec(iRow, 3));
+                //var slc = new PCheckBox(entry.ConfigName)
+                //{
+                //    InitialState = entry.IsSelected ? 1 : 0,
+                //    OnChecked = OnChecked_IsSelected
+                //};
+                //gridPanel.AddChild(slc, new GridComponentSpec(iRow, ++iCol));
             }
 
             var scrollBody = new PPanel("ScrollContent")
@@ -239,21 +248,27 @@ namespace ExtendedBuildingWidth
                 Spacing = SpacingInPixels,
                 Margin = new RectOffset(10, 10, 10, 10)
             };
-            var cbShowTechName = new PCheckBox();
-            cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = "Show tech names";
-            cbShowTechName.OnChecked += OnChecked_ShowTechName;
+            var cbShowTechName = new PCheckBox()
+            {
+                InitialState = ShowTechName ? 1 : 0,
+                Text = "Show tech names",
+                OnChecked = OnChecked_ShowTechName
+            };
             controlPanel.AddChild(cbShowTechName);
 
-            var btnAdd = new PButton();
-            btnAdd.Text = "Add or remove records";
-            btnAdd.OnClick += OnClick_AddRemoveRecords;
+            var btnAdd = new PButton()
+            {
+                Text = "Add or remove records",
+                OnClick = OnClick_AddRemoveRecords,
+            };
             controlPanel.AddChild(btnAdd);
 
-            //var btnAnimSlicing = new PButton();
-            //btnAnimSlicing.Text = "Modify Anim Slicing Settings";
-            //btnAnimSlicing.OnClick += OnClick_AnimSlicingSettingsDialog;
-            //controlPanel.AddChild(btnAnimSlicing);
+            //var btnDel = new PButton()
+            //{
+            //    Text = "Delete selected records",
+            //    OnClick = OnClick_DeleteSelectedRecords,
+            //};
+            //controlPanel.AddChild(btnDel);
 
             _dialogBodyChild.AddChild(controlPanel);
         }
@@ -266,13 +281,24 @@ namespace ExtendedBuildingWidth
             {
                 var rec = new EditConfigDialog_Item()
                 {
-                    TechName = entry.ConfigName,
+                    ConfigName = entry.ConfigName,
                     MinWidth = entry.MinWidth,
                     MaxWidth = entry.MaxWidth,
                     AnimStretchModifier = entry.AnimStretchModifier
                 };
                 _dialogData.Add(rec);
             }
+        }
+
+        private bool TryGetRecord(string name, out EditConfigDialog_Item record)
+        {
+            if (!_dialogData.Any(x => x.ConfigName == name))
+            {
+                record = null;
+                return false;
+            }
+            record = _dialogData.Where(x => x.ConfigName == name).First();
+            return true;
         }
 
         private void OnDialogClosed(string option)
@@ -287,7 +313,7 @@ namespace ExtendedBuildingWidth
             {
                 var rec = new ExtendableConfigSettings()
                 {
-                    ConfigName = entry.TechName,
+                    ConfigName = entry.ConfigName,
                     MinWidth = entry.MinWidth,
                     MaxWidth = entry.MaxWidth,
                     AnimStretchModifier = entry.AnimStretchModifier
@@ -300,42 +326,41 @@ namespace ExtendedBuildingWidth
 
         private void OnTextChanged_MinWidth(GameObject source, string text)
         {
-            var record = _dialogData.Where(x => x.TechName == source.name).FirstOrDefault();
-            if (record == null)
+            if (!TryGetRecord(source.name, out var record))
             {
                 return;
             }
-
-            if (int.TryParse(text, out var parsed))
+            if (!int.TryParse(text, out var parsed))
             {
-                record.MinWidth = parsed;
+                return;
             }
+            record.MinWidth = parsed;
         }
 
         private void OnTextChanged_MaxWidth(GameObject source, string text)
         {
-            var record = _dialogData.Where(x => x.TechName == source.name).FirstOrDefault();
-            if (record == null)
+            if (!TryGetRecord(source.name, out var record))
             {
                 return;
             }
-            if (int.TryParse(text, out var parsed))
+            if (!int.TryParse(text, out var parsed))
             {
-                record.MaxWidth = parsed;
+                return;
             }
+            record.MaxWidth = parsed;
         }
 
         private void OnTextChanged_AnimStretchModifier(GameObject source, string text)
         {
-            var record = _dialogData.Where(x => x.TechName == source.name).FirstOrDefault();
-            if (record == null)
+            if (!TryGetRecord(source.name, out var record))
             {
                 return;
             }
-            if (float.TryParse(text, out var parsed))
+            if (!float.TryParse(text, out var parsed))
             {
-                record.AnimStretchModifier = parsed;
+                return;
             }
+            record.AnimStretchModifier = parsed;
         }
 
         private void OnClick_AddRemoveRecords(GameObject source)
@@ -344,19 +369,33 @@ namespace ExtendedBuildingWidth
             dARR.CreateAndShow(null);
         }
 
-        //private void OnClick_AnimSlicingSettingsDialog(GameObject source)
-        //{
-        //    var dASS = new Dialog_EditAnimSlicingSettings(_modSettings);
-        //    dASS.CreateAndShow(null);
-        //}
-
         private void OnChecked_ShowTechName(GameObject source, int state)
         {
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
             ShowTechName = (newState == 1);
-
             RebuildBodyAndShow();
         }
+
+        //private void OnClick_DeleteSelectedRecords(GameObject source)
+        //{
+        //    _dialogData.RemoveAll(x => x.IsSelected);
+        //    RebuildBodyAndShow();
+        //}
+        //private void OnChecked_IsSelected(GameObject source, int state)
+        //{
+        //    int newState = (state + 1) % 2;
+        //    PCheckBox.SetCheckState(source, newState);
+
+        //    var checkButton = source.GetComponentInChildren<MultiToggle>();
+
+        //    if (!TryGetRecord(checkButton.name, out var record))
+        //    {
+        //        return;
+        //    }
+        //    record.IsSelected = (newState == 1);
+
+        //    RebuildBodyAndShow();
+        //}
     }
 }

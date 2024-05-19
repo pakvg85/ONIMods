@@ -11,13 +11,6 @@ namespace ExtendedBuildingWidth
 {
     public class SettingsManager
     {
-        public class BuildingDescription
-        {
-            public string TechName { get; set; }
-            public string Caption { get; set; }
-            public string Desc { get; set; }
-        }
-
         public const string AllAvailableBuildings_FileName = "AllAvailableBuildings.txt";
         public const string SourceFileForConfigJson_FileName = "SourceFileForConfigJson.txt";
         public const int DefaultMinWidth = 2;
@@ -68,7 +61,7 @@ namespace ExtendedBuildingWidth
                 {
                     foreach (var line in allBuildingsList)
                     {
-                        fs.WriteLine(line.TechName + "\t" + line.Caption + "\t" + line.Desc);
+                        fs.WriteLine(line.ConfigName + "\t" + line.Caption + "\t" + line.Desc);
                     }
                 }
 
@@ -208,7 +201,7 @@ namespace ExtendedBuildingWidth
                         nameValue = RemoveBetween(nameValue, "</link", ">");
                         nameValue = RemoveBetween(nameValue, "<link=", ">");
                     }
-                    result.Add(new BuildingDescription() { TechName = buildingDefType.FullName, Caption = nameValue, Desc = descValue });
+                    result.Add(new BuildingDescription() { ConfigName = buildingDefType.FullName, Caption = nameValue, Desc = descValue });
                 }
             }
             catch (Exception e)
@@ -267,14 +260,15 @@ namespace ExtendedBuildingWidth
         public static List<AnimSplittingSettings> GenerateDefaultValues_For_AnimSplittingSettings()
         {
             var result = new List<AnimSplittingSettings>();
+            AnimSplittingSettings item;
 
-            var item = new AnimSplittingSettings()
+            item = new AnimSplittingSettings()
             {
                 ConfigName = "GasConduitBridgeConfig",
                 IsActive = true,
                 MiddlePart_X = 135,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -282,10 +276,12 @@ namespace ExtendedBuildingWidth
             item = new AnimSplittingSettings()
             {
                 ConfigName = "LiquidConduitBridgeConfig",
+                SymbolName = "bridge",
+                FrameIndex = "0",
                 IsActive = true,
                 MiddlePart_X = 145,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -296,7 +292,7 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 110,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -307,7 +303,7 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 158,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -318,7 +314,7 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 147,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -329,7 +325,7 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 130,
                 MiddlePart_Width = 1,
-                FillingMethod = FillingMethod.Stretch,
+                FillingMethod = FillingStyle.Stretch,
                 DoFlipEverySecondIteration = false
             };
             result.Add(item);
@@ -340,7 +336,7 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 97,
                 MiddlePart_Width = 85,
-                FillingMethod = FillingMethod.Repeat,
+                FillingMethod = FillingStyle.Repeat,
                 DoFlipEverySecondIteration = true
             };
             result.Add(item);
@@ -351,8 +347,112 @@ namespace ExtendedBuildingWidth
                 IsActive = true,
                 MiddlePart_X = 115,
                 MiddlePart_Width = 50,
-                FillingMethod = FillingMethod.Repeat,
+                FillingMethod = FillingStyle.Repeat,
                 DoFlipEverySecondIteration = true
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "place",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 150,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "wire4",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 82,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "wire3",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 82,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "wire2",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 82,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "wire1",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 82,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireBridgeHighWattageConfig",
+                SymbolName = "place",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 123,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireBridgeHighWattageConfig",
+                SymbolName = "outlets",
+                FrameIndex = "1",
+                IsActive = true,
+                MiddlePart_X = 140,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireBridgeHighWattageConfig",
+                SymbolName = "tile_fg",
+                FrameIndex = "1",
+                IsActive = true,
+                MiddlePart_X = 38,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
             };
             result.Add(item);
 
@@ -370,6 +470,10 @@ namespace ExtendedBuildingWidth
             result.Add("LogicWireBridgeConfig", "logic_bridge_kanim");
             result.Add("WireBridgeConfig", "utilityelectricbridge_kanim");
             result.Add("WireRefinedBridgeConfig", "utilityelectricbridgeconductive_kanim");
+
+            result.Add("LogicRibbonBridgeConfig", "logic_ribbon_bridge_kanim");
+            result.Add("WireBridgeHighWattageConfig", "heavywatttile_kanim");
+
             return result;
         }
     }
