@@ -70,19 +70,8 @@ namespace ExtendedBuildingWidth
             }
             catch (Exception e)
             {
-                Debug.Log("ExtendedBuildingWidth ERROR - Exception while writing to AllAvailableBuildings file");
-                Debug.Log(e.Message);
-
-                try
-                {
-                    PUIElements.ShowMessageDialog(null, "Error occured while writing to AllAvailableBuildings file. Check logs.");
-                    System.Diagnostics.Process.Start(Get_DebugLog_Path());
-                }
-                catch (Exception e2)
-                {
-                    Debug.Log("ExtendedBuildingWidth ERROR - Error occured while handling an error. Welp...");
-                    Debug.Log(e2.Message);
-                }
+                Debug.LogWarning("ExtendedBuildingWidth - Exception while writing to AllAvailableBuildings file");
+                Debug.LogWarning(e.ToString());
             }
         }
 
@@ -107,7 +96,7 @@ namespace ExtendedBuildingWidth
                 }
                 if (!fs.EndOfStream && counterToPreventInfiniteLoop >= 777)
                 {
-                    Debug.Log("ExtendedBuildingWidth ERROR - there was a problem reading from SourceFileForConfigJson");
+                    Debug.LogWarning("ExtendedBuildingWidth - there was a problem reading from SourceFileForConfigJson");
                 }
 
                 if (!result.Any())
@@ -206,8 +195,8 @@ namespace ExtendedBuildingWidth
             }
             catch (Exception e)
             {
-                Debug.Log("ExtendedBuildingWidth ERROR - Exception while scanning for names");
-                Debug.Log(e.Message);
+                Debug.LogWarning("ExtendedBuildingWidth - Exception while scanning for names");
+                Debug.LogWarning(e.ToString());
             }
 
             return result;
@@ -227,9 +216,10 @@ namespace ExtendedBuildingWidth
                         list.AddRange(types);
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    Debug.Log("ExtendedBuildingWidth ERROR - unable to get types from assembly " + assemblies[i].FullName);
+                    Debug.LogWarning("ExtendedBuildingWidth - unable to get types from assembly " + assemblies[i].FullName);
+                    Debug.LogWarning(e.ToString());
                 }
             }
 
@@ -276,8 +266,6 @@ namespace ExtendedBuildingWidth
             item = new AnimSplittingSettings()
             {
                 ConfigName = "LiquidConduitBridgeConfig",
-                SymbolName = "bridge",
-                FrameIndex = "0",
                 IsActive = true,
                 MiddlePart_X = 145,
                 MiddlePart_Width = 1,
@@ -368,6 +356,19 @@ namespace ExtendedBuildingWidth
             item = new AnimSplittingSettings()
             {
                 ConfigName = "LogicRibbonBridgeConfig",
+                SymbolName = "box",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 100,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.Stretch,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "LogicRibbonBridgeConfig",
                 SymbolName = "wire4",
                 FrameIndex = "0",
                 IsActive = true,
@@ -434,6 +435,19 @@ namespace ExtendedBuildingWidth
             {
                 ConfigName = "WireBridgeHighWattageConfig",
                 SymbolName = "outlets",
+                FrameIndex = "0",
+                IsActive = true,
+                MiddlePart_X = 123,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "WireBridgeHighWattageConfig",
+                SymbolName = "outlets",
                 FrameIndex = "1",
                 IsActive = true,
                 MiddlePart_X = 140,
@@ -447,7 +461,7 @@ namespace ExtendedBuildingWidth
             {
                 ConfigName = "WireBridgeHighWattageConfig",
                 SymbolName = "tile_fg",
-                FrameIndex = "1",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
                 IsActive = true,
                 MiddlePart_X = 38,
                 MiddlePart_Width = 48,

@@ -225,10 +225,10 @@ namespace ExtendedBuildingWidth
             var addRemoveRecords = new List<System.Tuple<string, bool>>();
             foreach (var entry in _modifiedItems.Values)
             {
-                addRemoveRecords.Add(new System.Tuple<string, bool>(entry.ConfigName, (entry.IsChecked == 1)));
+                addRemoveRecords.Add(new System.Tuple<string, bool>(entry.ConfigName, (entry.IsChecked == PCheckBox.STATE_CHECKED)));
             }
             _dialog_Parent.ApplyChanges(addRemoveRecords);
-            _dialog_Parent.RebuildBodyAndShow();
+            _dialog_Parent.RebuildDataPanel();
         }
 
         private bool TryGetRecord(string name, out AddRemoveDialog_Item record)
@@ -263,7 +263,7 @@ namespace ExtendedBuildingWidth
         {
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
-            ShowTechName = (newState == 1);
+            ShowTechName = (newState == PCheckBox.STATE_CHECKED);
             RebuildAndShow();
         }
     }

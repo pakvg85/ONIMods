@@ -34,7 +34,7 @@ namespace ExtendedBuildingWidth
                     KAnimFile origAnimFile;
                     if (!animTable.TryGetValue(new KAnimHashedString(origAnimName), out origAnimFile))
                     {
-                        Debug.Log($"ExtendedBuildingWidth WARNING - AddDynamicAnimsNames_To_ModLoadedKAnims: anim {origAnimName} for config {item.ConfigName} not loaded");
+                        Debug.LogWarning($"ExtendedBuildingWidth - AddDynamicAnimsNames_To_ModLoadedKAnims: anim {origAnimName} for config {item.ConfigName} not loaded");
                         continue;
                     }
 
@@ -78,8 +78,8 @@ namespace ExtendedBuildingWidth
                 }
                 catch (Exception e)
                 {
-                    Debug.Log($"ExtendedBuildingWidth WARNING - anims for config {item.ConfigName} were not loaded");
-                    Debug.Log(e.ToString());
+                    Debug.LogWarning($"ExtendedBuildingWidth - anims for config {item.ConfigName} were not loaded");
+                    Debug.LogWarning(e.ToString());
                 }
             }
 
@@ -275,6 +275,9 @@ namespace ExtendedBuildingWidth
                 bool flipByX = false
             )
         {
+#if DEBUG
+            Debug.Log("--- GenerateSpriteForFrame");
+#endif
             //const bool centered = false;
 
             float textureWidth = texture.width;
@@ -327,11 +330,18 @@ namespace ExtendedBuildingWidth
             //    });
             //var result = rez as Sprite;
 
+            var pivot = flipByX ? new Vector2(-1f, 0f) : Vector2.zero;
+
+#if DEBUG
+            Debug.Log($"rect=[{rect.x}, {rect.width}] - [{rect.y}, {rect.height}]; pixelsPerUnit={pixelsPerUnit}; pivot={pivot}");
+            Debug.Log($"texture={texture.width} - {texture.height}; widthScaled={widthScaled}");
+#endif
+
             var result = Sprite.Create(
                     texture,
                     rect,
                     //pivot: centered ? new Vector2(0.5f, 0.5f) : Vector2.zero,
-                    pivot: flipByX ? new Vector2(-1f, 0f) : Vector2.zero,
+                    pivot: pivot,
                     pixelsPerUnit,
                     extrude: 0U,
                     meshType: SpriteMeshType.FullRect
@@ -346,64 +356,81 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
-        public static List<Sprite> GenerateSpritesForSymbol(
-                KAnim.Build.Symbol symbol,
-                Texture2D texture,
-                bool doFlipEverySecondIteration
-            )
+        private static AnimSplittingSettings_Internal MapToInternal(AnimSplittingSettings entry, string SymbolName, string FrameIndex)
         {
-            var result = new List<Sprite>();
-
-            bool flipByX = false;
-            for (int frameIter = 0; frameIter < symbol.numFrames; frameIter++)
+            if (   string.IsNullOrEmpty(SymbolName)
+                || string.IsNullOrEmpty(FrameIndex)
+                )
             {
-                var origFrame = symbol.GetFrame(frameIter);
-
-                var sprite = GenerateSpriteForFrame(
-                        origFrame,
-                        texture,
-                        flipByX: flipByX
-                    );
-                result.Add(sprite);
-
-                flipByX = doFlipEverySecondIteration ? !flipByX : false;
+                throw new ArgumentNullException("SymbolName / FrameIndex");
             }
+            //var symbolNameHash = !string.IsNullOrEmpty(SymbolName) ? new KAnimHashedString(SymbolName) : default;
+            //var frameIndex = !string.IsNullOrEmpty(FrameIndex) ? int.Parse(FrameIndex) : -1;
+            var symbolNameHash = new KAnimHashedString(SymbolName);
+            var frameIndex = int.Parse(FrameIndex);
 
-            return result;
+            var newEntry = new AnimSplittingSettings_Internal
+            {
+                ConfigName = entry.ConfigName,
+                SymbolName = symbolNameHash,
+                FrameIndex = frameIndex,
+                IsActive = entry.IsActive,
+                MiddlePart_X = entry.MiddlePart_X,
+                MiddlePart_Width = entry.MiddlePart_Width,
+                FillingStyle = entry.FillingMethod,
+                DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
+            };
+            return newEntry;
         }
 
-        public class AnimSplittingSettings_Internal
-        {
-            public string ConfigName { get; set; }
-            public KAnimHashedString SymbolName { get; set; }
-            public int FrameIndex { get; set; }
-            public bool IsActive { get; set; }
-            public int MiddlePart_X { get; set; }
-            public int MiddlePart_Width { get; set; }
-            public FillingStyle FillingStyle { get; set; }
-            public bool DoFlipEverySecondIteration { get; set; }
-        }
-
-        private static List<AnimSplittingSettings_Internal> MapAnimSplittingSettingsToInternal(List<AnimSplittingSettings> settingsItems)
+        private static List<AnimSplittingSettings_Internal> MapToInternal(List<AnimSplittingSettings> list)
         {
             var result = new List<AnimSplittingSettings_Internal>();
-            foreach (var entry in settingsItems)
+            foreach (var entry in list)
             {
-                var symbolName = !string.IsNullOrEmpty(entry.SymbolName) ? entry.SymbolName : "bridge";
-                var frameIndex = !string.IsNullOrEmpty(entry.FrameIndex) ? int.Parse(entry.FrameIndex) : 0;
-
-                var newEntry = new AnimSplittingSettings_Internal
+                try
                 {
-                    ConfigName = entry.ConfigName,
-                    SymbolName = new KAnimHashedString(symbolName),
-                    FrameIndex = frameIndex,
-                    IsActive = entry.IsActive,
-                    MiddlePart_X = entry.MiddlePart_X,
-                    MiddlePart_Width = entry.MiddlePart_Width,
-                    FillingStyle = entry.FillingMethod,
-                    DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
-                };
-                result.Add(newEntry);
+                    if (   !string.IsNullOrEmpty(entry.SymbolName)
+                        && !string.IsNullOrEmpty(entry.FrameIndex)
+                        )
+                    {
+                        var newEntry = MapToInternal(entry, entry.SymbolName, entry.FrameIndex);
+                        result.Add(newEntry);
+                    }
+                    else if (  !string.IsNullOrEmpty(entry.SymbolName)
+                            && string.IsNullOrEmpty(entry.FrameIndex)
+                            )
+                    { 
+                        var config = DynamicBuildingsManager.ConfigMap[entry.ConfigName];
+                        var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+                        var symbol = originalDef.AnimFiles.First().GetData().build.GetSymbol(entry.SymbolName);
+                        for (var i = 0; i < symbol.numFrames; i++)
+                        {
+                            var newEntry = MapToInternal(entry, symbol.hash.ToString(), i.ToString());
+                            result.Add(newEntry);
+                        }
+                    }
+                    else if (string.IsNullOrEmpty(entry.SymbolName))
+                    {
+                        var config = DynamicBuildingsManager.ConfigMap[entry.ConfigName];
+                        var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+                        var symbols = originalDef.AnimFiles.First().GetData().build.symbols;
+                        foreach (var symbol in symbols)
+                        {
+                            for (var i = 0; i < symbol.numFrames; i++)
+                            {
+                                var newEntry = MapToInternal(entry, symbol.hash.ToString(), i.ToString());
+                                result.Add(newEntry);
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"ExtendedBuildingWidth - MapToInternal List at {entry.ConfigName} - [{entry.SymbolName}, {entry.FrameIndex}]");
+                    Debug.LogWarning(e.ToString());
+                    throw e;
+                }
             }
             return result;
         }
@@ -423,10 +450,23 @@ namespace ExtendedBuildingWidth
                 throw new ArgumentNullException("animFile?.GetData()?.build?.batchTag");
             }
 
-            var validSymbolNames = settingsItems.Select(x => x.SymbolName).Distinct().ToHashSet();
+            var settingsInternal = MapToInternal(settingsItems);
+#if DEBUG
+            Debug.Log($"settingsItems:");
+            foreach (var value in settingsItems)
+            {
+                Debug.Log($"{value.ConfigName} - [{value.SymbolName}, {value.FrameIndex}]");
+            }
 
-            var settingsInternal = MapAnimSplittingSettingsToInternal(settingsItems);
+            Debug.Log($"settingsItemsInternal:");
+            foreach (var value in settingsInternal)
+            {
+                Debug.Log($"{value.ConfigName} - [{value.SymbolName}, {value.FrameIndex}]");
+            }
+#endif
             var settingsItemsDict = settingsInternal.ToDictionary(x => System.Tuple.Create(x.SymbolName, x.FrameIndex), y => y);
+
+            var validSymbolNames = settingsInternal.Select(x => x.SymbolName).Distinct().ToHashSet();
 
             var animData = animFile.GetData();
             var texture = animFile.textureList.First();
@@ -481,7 +521,7 @@ namespace ExtendedBuildingWidth
 
         private static Dictionary<System.Tuple<KAnimHashedString, int>, List<KAnim.Build.SymbolFrameInstance>> GenerateNewFramesForSymbols(
             KAnimFileData animData,
-            HashSet<string> validSymbolNames,
+            HashSet<KAnimHashedString> validSymbolNames,
             Dictionary<System.Tuple<KAnimHashedString, int>, AnimSplittingSettings_Internal> settingsItemsDict,
             int textureWidth,
             int widthInCellsDelta
@@ -495,8 +535,8 @@ namespace ExtendedBuildingWidth
             {
                 var symbol = animData.build.GetSymbolByIndex(symbolIter);
 
-                if (symbol.hash.ToString() == "ui"
-                    || !validSymbolNames.Contains(symbol.hash.ToString())
+                if (   symbol.hash.ToString() == "ui"
+                    || !validSymbolNames.Contains(symbol.hash)
                     )
                 {
                     for (int origFrameIndex = 0; origFrameIndex < symbol.numFrames; origFrameIndex++)

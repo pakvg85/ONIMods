@@ -84,26 +84,28 @@ namespace ExtendedBuildingWidth
             return _dialogData.Select(d => d.ConfigName).ToList();
         }
 
-        public void ApplyChanges(ICollection<Tuple<string, bool>> modifiedRecords)
+        public void ApplyChanges(ICollection<System.Tuple<string, bool>> modifiedRecords)
         {
             foreach (var entry in modifiedRecords)
             {
-                TryGetRecord(entry.first, out var existingRecord);
+                var configName = entry.Item1;
+                bool doAddNewRecord = entry.Item2;
+                bool hasRecordsWithThisConfig = TryGetRecord(configName, out var existingRecord);
 
-                if (!entry.second)
+                if (!doAddNewRecord)
                 {
-                    if (existingRecord != null)
+                    if (hasRecordsWithThisConfig)
                     {
                         _dialogData.Remove(existingRecord);
                     }
                 }
-                else if (entry.second)
+                else
                 {
-                    if (existingRecord == null)
+                    if (!hasRecordsWithThisConfig)
                     {
                         var newRec = new EditConfigDialog_Item()
                         {
-                            ConfigName = entry.first,
+                            ConfigName = configName,
                             MinWidth = SettingsManager.DefaultMinWidth,
                             MaxWidth = SettingsManager.DefaultMaxWidth,
                             AnimStretchModifier = SettingsManager.DefaultAnimStretchModifier
@@ -373,7 +375,7 @@ namespace ExtendedBuildingWidth
         {
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
-            ShowTechName = (newState == 1);
+            ShowTechName = (newState == PCheckBox.STATE_CHECKED);
             RebuildBodyAndShow();
         }
 
@@ -393,7 +395,7 @@ namespace ExtendedBuildingWidth
         //    {
         //        return;
         //    }
-        //    record.IsSelected = (newState == 1);
+        //    record.IsSelected = (newState == PCheckBox.STATE_CHECKED);
 
         //    RebuildBodyAndShow();
         //}

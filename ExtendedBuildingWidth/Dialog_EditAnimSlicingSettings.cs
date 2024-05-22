@@ -1,9 +1,12 @@
-﻿using PeterHan.PLib.UI;
+﻿using PeterHan.PLib.Core;
+using PeterHan.PLib.UI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
-using static ExtendedBuildingWidth.DynamicAnimManager;
+using static STRINGS.BUILDING.STATUSITEMS;
+using static STRINGS.DUPLICANTS.PERSONALITIES;
 
 namespace ExtendedBuildingWidth
 {
@@ -11,8 +14,8 @@ namespace ExtendedBuildingWidth
     {
         private class AnimSplittingSettings_Item
         {
-            public Guid Guid { get; set; }
-            public string ConfigName { get; set; }
+            public Guid Guid { get; init; }
+            public string ConfigName { get; init; }
             public string SymbolName { get; set; }
             public string FrameIndex { get; set; }
             public bool IsActive { get; set; }
@@ -22,15 +25,12 @@ namespace ExtendedBuildingWidth
             public bool DoFlipEverySecondIteration { get; set; }
         }
 
-        private PDialog _pDialog = null;
-        private PPanel _dialogBody = null;
-        //private PPanelWithClearableChildren _dialogBodyChild = null;
-        private PPanel _dialogBodyChild = null;
-        private KScreen _componentScreen = null;
-        private PPanel _dynamicBuildingPreviewPanel = null;
+        private GameObject _dataPanelParentGo = null;
+        private GameObject _previewPanelParentGo = null;
+        private GameObject _dataPanelGo = null;
+        private GameObject _previewPanelGo = null;
         private readonly List<AnimSplittingSettings_Item> _dialogData = new List<AnimSplittingSettings_Item>();
-        //private Dictionary<Guid, GameObject> _gameObjects = new Dictionary<Guid, GameObject>();
-        private Dictionary<Guid, Dictionary<string, GameObject>> _gameObjects = new Dictionary<Guid, Dictionary<string, GameObject>>();
+        private Dictionary<Guid, Dictionary<string, GameObject>> _dialogDataRecordToFrameDropdownGoMap = new Dictionary<Guid, Dictionary<string, GameObject>>();
         private Dictionary<Guid, Dictionary<string, PComboBox<StringListOption>>> _comboBoxes = new Dictionary<Guid, Dictionary<string, PComboBox<StringListOption>>>();
         private readonly ModSettings _modSettings;
 
@@ -40,9 +40,10 @@ namespace ExtendedBuildingWidth
 
         const string MiddlePartAlias = "Middle Part";
         const string KAnimSpriteAlias = "KAnim Sprite";
+        const string FillingStyleAlias = "filling style";
         string ExpansionStyleCombobox_Tooltip = $"Stretch: {MiddlePartAlias} will be drawn stretched between left and right parts."
                         + Environment.NewLine + $"Repeat: {MiddlePartAlias} will be drawn repeatedly starting from the left part, until the right part is reached.";
-        string DoFlipEverySecondIteration_Tooltip = $"When 'Repeat' filling method is chosen: {MiddlePartAlias} will be flipped horizontally every second time it is drawn.";
+        string DoFlipEverySecondIteration_Tooltip = $"When 'Repeat' {FillingStyleAlias} is chosen: {MiddlePartAlias} will be flipped horizontally every second time it is drawn.";
         string IsActive_Tooltip = "Checked: dynamic buildings of this config will be drawn according to these settings."
           + Environment.NewLine + "Unchecked: dynamic buildings of this config will be drawn old style (fully stretched from left to right).";
         string MiddlePartX_Tooltip = $"X position (in pixels) of the original {KAnimSpriteAlias} that defines {MiddlePartAlias}.";
@@ -51,21 +52,39 @@ namespace ExtendedBuildingWidth
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
         const int SpacingInPixels = 7;
-        const string SymbolEmptyOptionText = " ";
-        const string FrameEmptyOptionText = " ";
+        const string OptionKeyEmpty = " ";
+        public const string JsonValueEmpty = "";
 
+        private List<int> DefaultGridColumnWidths = new List<int>()
+        {
+            400,    // config name
+            30,     // + (add record)
+            30,     // - (remove record)
+            120,    // symbol
+            80,     // frame index
+            80,     // enabled (IsActive)
+            120,    // middle part filling style
+            80,     // middle part pos X
+            80,     // middle part width
+            80,     // flip every second time
+            80      // preview button
+        };
+        Vector2 DataGridCellFlex { get; } = Vector2.right; // whatever value is set, it will always stretch to 100%. I don't know why.
         private List<StringListOption> _fillingStyle_Options = new List<StringListOption>()
         {
             new StringListOption("Stretch"),
             new StringListOption("Repeat")
         };
-        private Dictionary<string, List<StringListOption>> _configToSymbolMap;
-        private Dictionary<string, Dictionary<string, List<StringListOption>>> _configToSymbolToFramesMap;
+        private Dictionary<string, List<StringListOption>> _configToSymbolDropdownMap;
+        private Dictionary<string, Dictionary<string, List<StringListOption>>> _configToSymbolToFrameOptionsMap;
 
-        const int MinBuildingWidthToShow = 3;
         const int MaxBuildingWidthToShow = 8;
+        const int DefaultMiddlePartX = 50;
+        const int DefaultMiddlePartWidth = 15;
+        const int INDEX_NOT_FOUND = -1;
 
         public bool ShowTechName { get; set; } = false;
+        public bool ShowDropdownsForSymbolsAndFrames { get; set; } = true;
         public bool ActiveRecordInitialized { get; set; } = false;
         public Guid ActiveRecordId { get; set; } = default;
         public int DesiredBuildingWidthToShow { get; set; } = 5;
@@ -81,58 +100,142 @@ namespace ExtendedBuildingWidth
             {
                 Title = DialogTitle,
                 DialogClosed = OnDialogClosed,
-                Size = new Vector2 { x = 1000, y = 700 },
-                MaxSize = new Vector2 { x = 1000, y = 700 },
+                Size = new Vector2 { x = 1280, y = 900 },
+                MaxSize = new Vector2 { x = 1280, y = 900 },
                 SortKey = 200.0f
             }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
             .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
 
             GenerateInitialData();
 
-            _pDialog = dialog;
-            _dialogBody = dialog.Body;
+            dialog.Body.DynamicSize = true;
+            dialog.Body.FlexSize = Vector2.one;
+            dialog.Body.Margin = new RectOffset(10, 10, 10, 10);
+            dialog.Body.Alignment = TextAnchor.UpperLeft;
+            //dialog.Body.BackColor = Color.white;
 
-            RebuildBodyAndShow(showFirstTime: true);
-        }
-
-        private PScrollPane _recordsPane;
-        private PPanel _controlPanel;
-        
-        internal void RebuildBodyAndShow(bool showFirstTime = false)
-        {
-            if (!showFirstTime)
+            var gridPanel = new PGridPanel()
             {
-                _componentScreen.Deactivate();
-            }
+                //BackColor = Color.black,
+                DynamicSize = true, FlexSize = Vector2.one // does matter - so the scroll slider will be at far right
+            };
+            gridPanel.AddColumn(new GridColumnSpec(0, 100));
+            gridPanel.AddRow(new GridRowSpec(50, 0));
+            gridPanel.AddRow(new GridRowSpec(500, 0));
+            gridPanel.AddRow(new GridRowSpec(70, 0));
+            gridPanel.AddRow(new GridRowSpec(200, 0));
+            dialog.Body.AddChild(gridPanel);
 
-            ClearContents();
+            // contents should lean to left border
+            var headerPanelParent = new PPanel("HeaderPanelParent")
+            { 
+                Alignment = TextAnchor.UpperLeft, // does matter - contents are not stretched and should lean to left
+                //BackColor = Color.green,
+                DynamicSize = true, FlexSize = Vector2.one // does matter - if not set, then contents will be centered
+            };
+            var titlesPanel = GenerateTitles();
+            //titlesPanel.FlexSize = ... ; // should not be stretched - contents should lean to the left
+            //titlesPanel.BackColor = Color.gray;
+            headerPanelParent.AddChild(titlesPanel);
+            gridPanel.AddChild(headerPanelParent, new GridComponentSpec(0, 0));
 
-            _gameObjects.Clear();
-            _comboBoxes.Clear();
+            // contents should lean to left border
+            // and scroll slider should lean to the right border
+            var dataPanelParent = new PPanel("DataPanelParent")
+            { 
+                //Alignment = ... // doesn't matter - contents are stretched by ScrollPane
+                //BackColor = Color.magenta,
+                DynamicSize = true, FlexSize = Vector2.one // does matter - so the scroll slider will be at far right
+            };
+            dataPanelParent.OnRealize += (realized) => { _dataPanelParentGo = realized; };
+            var dataPanel = GenerateDataPanel();
+            //dataPanel.BackColor = Color.yellow;
+            // dataPanel.FlexSize = Vector2.one; // should not be stretched - contents should lean to the left
+            var dataPanelWithScroll = CreateScrollForPanel(dataPanel);
+            dataPanelWithScroll.FlexSize = Vector2.one; // does matter - so the scroll slider will be at far right
+            dataPanelWithScroll.OnRealize += (realized) => { _dataPanelGo = realized; };
+            dataPanelParent.AddChild(dataPanelWithScroll);
+            gridPanel.AddChild(dataPanelParent, new GridComponentSpec(1, 0));
 
-            _recordsPane = GenerateRecordsPanel();
-            _controlPanel = GenerateControlPanel();
-            _dialogBodyChild.AddChild(_recordsPane);
-            _dialogBodyChild.AddChild(_controlPanel);
+            // contents should be centered
+            var controlPanelParent = new PPanel("ControlPanelParent")
+            { 
+                //Alignment = ... FlexSize = ... // doesn't matter - contents will be centered anyway
+            };
+            var controlPanel = GenerateControlPanel();
+            //controlPanel.BackColor = Color.blue;
+            controlPanelParent.AddChild(controlPanel);
+            gridPanel.AddChild(controlPanelParent, new GridComponentSpec(2, 0));
 
+            // contents should be centered
+            // and scroll slider should lean to the right border
+            var previewPanelParent = new PPanel("PreviewPanelParent")
+            {
+                Direction = PanelDirection.Vertical,
+                //BackColor = Color.cyan,
+                //Alignment = TextAnchor.UpperCenter, // doesn't matter - contents are stretched by ScrollPane
+                DynamicSize = true, FlexSize = Vector2.one // does matter - so the scroll slider will be at far right
+            };
+            previewPanelParent.OnRealize += (realized) => { _previewPanelParentGo = realized; };
             if (   ActiveRecordInitialized
                 && TryGetRecord(ActiveRecordId, out var settings_Item)
                 && !string.IsNullOrEmpty(settings_Item.ConfigName)
                 && DynamicBuildingsManager.ConfigMap.ContainsKey(settings_Item.ConfigName)
+                && TryGenerateDynamicBuildingPreviewPanel(settings_Item, out var previewPanel)
                 )
             {
-                _dynamicBuildingPreviewPanel = GenerateDynamicBuildingPreviewPanel(settings_Item);
-                _dialogBodyChild.AddChild(_dynamicBuildingPreviewPanel);
+                previewPanel.FlexSize = Vector2.right; // does matter - contents should be stretched so the contents will be centered and scroll will be at far right
+                //previewPanel.BackColor = Color.red;
+                var previewPanelWithScroll = CreateScrollForPanel(previewPanel);
+                previewPanelWithScroll.FlexSize = Vector2.one; // does matter - contents should be stretched so the scroll slider will be at far right
+                previewPanelWithScroll.OnRealize += (realized) => { _previewPanelGo = realized; };
+                previewPanelParent.AddChild(previewPanelWithScroll);
+            }
+            gridPanel.AddChild(previewPanelParent, new GridComponentSpec(3, 0));
+
+            dialog.Show();
+        }
+
+        internal void RebuildDataPanel()
+        {
+#if DEBUG
+            Debug.Log("--- RebuildDataPanel");
+            Debug.Log($"_dialogDataRecordToFrameDropdownGoMap.Clear()");
+#endif
+            _dialogDataRecordToFrameDropdownGoMap.Clear();
+
+            if (_dataPanelGo != null)
+            {
+                _dataPanelGo.SetParent(null);
+                _dataPanelGo.SetActive(false);
+                _dataPanelGo = null;
             }
 
-            _dialogBody.AddChild(_dialogBodyChild);
+            var dataPanel = GenerateDataPanel();
+            //dataPanel.BackColor = Color.yellow;
+            var dataPanelWithScroll = CreateScrollForPanel(dataPanel);
+            dataPanelWithScroll.FlexSize = Vector2.one;
+            dataPanelWithScroll.OnRealize += (realized) => { _dataPanelGo = realized; };
+            dataPanelWithScroll.AddTo(_dataPanelParentGo);
+        }
 
-            _componentScreen = null;
-            var upperGo = _pDialog.Build();
-            var isBuilt = upperGo.TryGetComponent<KScreen>(out _componentScreen);
-            if (isBuilt)
+        private void RebuildPreviewPanel(AnimSplittingSettings_Item record)
+        {
+            if (_previewPanelGo != null)
             {
-                _componentScreen.Activate();
+                _previewPanelGo.SetParent(null);
+                _previewPanelGo.SetActive(false);
+                _previewPanelGo = null;
+            }
+
+            if (TryGenerateDynamicBuildingPreviewPanel(record, out var previewPanel))
+            {
+                previewPanel.FlexSize = Vector2.right;
+                //previewPanel.BackColor = Color.red;
+                var previewPanelWithScroll = CreateScrollForPanel(previewPanel);
+                previewPanelWithScroll.FlexSize = Vector2.one;
+                previewPanelWithScroll.OnRealize += (realized) => { _previewPanelGo = realized; };
+                previewPanelWithScroll.AddTo(_previewPanelParentGo);
             }
         }
 
@@ -145,252 +248,346 @@ namespace ExtendedBuildingWidth
         {
             foreach (var entry in modifiedRecords)
             {
-                if (entry.Item2)
-                {
-                    if (_dialogData.Any(x => x.ConfigName == entry.Item1))
-                    {
-                        throw new ArgumentException($"ExtendedBuildingWidth ERROR - configName '{entry.Item1}' already exists in the dict");
-                    }
+                var configName = entry.Item1;
+                bool doAddNewRecord = entry.Item2;
+                var hasRecordsWithThisConfig = _dialogData.Any(x => x.ConfigName == configName);
 
-                    var newRec = new AnimSplittingSettings_Item()
+                if (!doAddNewRecord)
+                {
+                    if (hasRecordsWithThisConfig)
                     {
-                        Guid = Guid.NewGuid(),
-                        ConfigName = entry.Item1,
-                        SymbolName = string.Empty,
-                        FrameIndex = string.Empty,
-                        IsActive = true,
-                        MiddlePart_X = 130,
-                        MiddlePart_Width = 50,
-                        FillingStyle = FillingStyle.Stretch,
-                        DoFlipEverySecondIteration = false
-                    };
-                    _dialogData.Add(newRec);
+                        _dialogData.RemoveAll(x => x.ConfigName == configName);
+                    }
                 }
                 else
                 {
-                    _dialogData.RemoveAll(x => x.ConfigName == entry.Item1);
+                    if (!hasRecordsWithThisConfig)
+                    {
+                        var newRec = new AnimSplittingSettings_Item()
+                        {
+                            Guid = Guid.NewGuid(),
+                            ConfigName = configName,
+                            SymbolName = JsonValueEmpty,
+                            FrameIndex = JsonValueEmpty,
+                            IsActive = true,
+                            MiddlePart_X = DefaultMiddlePartX,
+                            MiddlePart_Width = DefaultMiddlePartWidth,
+                            FillingStyle = FillingStyle.Stretch,
+                            DoFlipEverySecondIteration = false
+                        };
+                        _dialogData.Add(newRec);
+                    }
                 }
             }
         }
 
-        private void ClearContents()
+        private PGridPanel GenerateTitles()
         {
-            if (_dialogBodyChild != null)
+            var tableTitlesPanel = new PGridPanel(DialogBodyGridPanelId);
+            foreach (var defaultGridColumnWidth in DefaultGridColumnWidths)
             {
-                _dialogBody.RemoveChild(_dialogBodyChild);
+                tableTitlesPanel.AddColumn(new GridColumnSpec(defaultGridColumnWidth));
             }
-            _dialogBodyChild = new PPanel("DialogBodyChild"); // PPanelWithClearableChildren
-        }
-
-        private void GenerateTitles()
-        {
-            var tableTitlesPanel = new PGridPanel(DialogBodyGridPanelId) { Margin = new RectOffset(10, 40, 10, 0) };
-            tableTitlesPanel.AddColumn(new GridColumnSpec(240));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(60));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(100));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(60));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
-            tableTitlesPanel.AddColumn(new GridColumnSpec(80));
             tableTitlesPanel.AddRow(new GridRowSpec());
             tableTitlesPanel.AddRow(new GridRowSpec());
 
             int iRow = 0;
             int iCol = -1;
             tableTitlesPanel.AddChild(new PLabel() { Text = "Config Name" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "preview" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Add" }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "+" }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "-" }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Symbol" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Frame No." }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "Frame" }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Enabled", ToolTip = IsActive_Tooltip }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = ExpansionStyleCombobox_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Filling Method", ToolTip = ExpansionStyleCombobox_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = "Filling Style", ToolTip = ExpansionStyleCombobox_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = MiddlePartX_Tooltip }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Position X", ToolTip = MiddlePartX_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = MiddlePartWidth_Tooltip }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Width", ToolTip = MiddlePartWidth_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Flip Every", ToolTip = DoFlipEverySecondIteration_Tooltip }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = "Second Time", ToolTip = DoFlipEverySecondIteration_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
-            _dialogBodyChild.AddChild(tableTitlesPanel);
+            tableTitlesPanel.AddChild(new PLabel() { Text = "preview" }, new GridComponentSpec(iRow, ++iCol));
+            return tableTitlesPanel;
         }
 
-        private void FillRecordsPanel_Block(
+        private void GetConfigLabelTextAndTooltip(string configName, Dictionary<string, BuildingDescription> allBuildingsDict, bool showTechName, out string configLabelText, out string configLabelTooltip)
+        {
+            string configCaption = string.Empty;
+            if (allBuildingsDict.TryGetValue(configName, out var buildingDescription))
+            {
+                configCaption = buildingDescription.Caption;
+            }
+            if (string.IsNullOrEmpty(configCaption))
+            {
+                configCaption = configName;
+            }
+            configLabelText = showTechName ? configName : configCaption;
+            configLabelTooltip = !showTechName ? configName : configCaption;
+        }
+
+        private bool TryFindOptionInDropdown(string jsonValue, List<StringListOption> options, out StringListOption chosenOption)
+        {
+#if DEBUG
+            Debug.Log("--- TryFindOptionInDropdown");
+            Debug.Log($"jsonValue='{jsonValue}',");
+#endif
+            // don't allow to set ' ' (OptionKeyEmpty) into jsonValue. only '' (JsonValueEmpty) is allowed.
+            if (   jsonValue == OptionKeyEmpty
+                && OptionKeyEmpty != JsonValueEmpty
+                )
+            {
+                chosenOption = null;
+                return false;
+            }
+
+            var optionsKey = OptionKeyByJsonValue(jsonValue);
+            var optionIndex = options.FindIndex(x => x.ToString() == optionsKey);
+#if DEBUG
+            Debug.Log($"optionsKey='{optionsKey}', optionIndex='{optionIndex}'");
+#endif
+            if (optionIndex == INDEX_NOT_FOUND)
+            {
+                chosenOption = null;
+                return false;
+            }
+
+            chosenOption = options[optionIndex];
+            return true;
+        }
+
+        private bool TryGetSymbolDropdownOption(string symbolName, string configName, out StringListOption chosenOption, out List<StringListOption> symbolOptions)
+        {
+            if (   !_configToSymbolDropdownMap.TryGetValue(configName, out symbolOptions)
+                || !TryFindOptionInDropdown(symbolName, symbolOptions, out chosenOption)
+                )
+            {
+                symbolOptions = null;
+                chosenOption = null;
+                return false;
+            }
+            return true;
+        }
+
+        private bool TryGetFrameDropdownOption(string frameIndex, string configName, string symbolName, out StringListOption chosenOption, out List<StringListOption> frameOptions)
+        {
+            if (   !_configToSymbolToFrameOptionsMap.TryGetValue(configName, out var symbolToFrameOptionsMap)
+                || !symbolToFrameOptionsMap.TryGetValue(OptionKeyByJsonValue(symbolName), out frameOptions)
+                || !TryFindOptionInDropdown(frameIndex, frameOptions, out chosenOption)
+                )
+            {
+                frameOptions = null;
+                chosenOption = null;
+                return false;
+            }
+            return true;
+        }
+
+        private void FillDataPanel_Block(
                 PGridPanel gridPanel,
                 int iRow,
                 AnimSplittingSettings_Item entry,
                 Dictionary<string, BuildingDescription> allBuildingsDict
             )
         {
+            int iCol = -1;
+
             var screenElementName = GenerateScreenElementName(entry);
             var configName = entry.ConfigName;
 
-            int iCol = -1;
             if (iRow == 0)
             {
-                string configCaption = string.Empty;
-                if (allBuildingsDict.TryGetValue(configName, out var buildingDescription))
+                // 0) Config Name
+                iCol++;
+                GetConfigLabelTextAndTooltip(configName, allBuildingsDict, ShowTechName, out var configLabelText, out var configLabelTooltip);
+                var cnN = new PLabel(screenElementName)
                 {
-                    configCaption = buildingDescription.Caption;
-                }
-                if (string.IsNullOrEmpty(configCaption))
-                {
-                    configCaption = configName;
-                }
-                var text = ShowTechName ? configName : configCaption;
-                var tooltip = !ShowTechName ? configName : configCaption;
+                    Text = configLabelText,
+                    ToolTip = configLabelTooltip
+                };
+                gridPanel.AddChild(cnN, new GridComponentSpec(iRow, iCol) { Alignment = TextAnchor.MiddleLeft });
 
-                gridPanel.AddChild(new PLabel(screenElementName) { Text = text, ToolTip = tooltip }, new GridComponentSpec(iRow, ++iCol) { Alignment = TextAnchor.MiddleLeft });
+                // 1) Add new record for config
+                iCol++;
+                var addS = new PButton(screenElementName) { OnClick = OnClick_AddNew, Text = "+" };
+                gridPanel.AddChild(addS, new GridComponentSpec(iRow, iCol));
             }
             else
             {
-                ++iCol;
+                iCol++;
+                iCol++;
             }
 
-            var prvB = new PButton(screenElementName) { OnClick = OnClick_ConfigName, Text = "preview" };
-            gridPanel.AddChild(prvB, new GridComponentSpec(iRow, ++iCol));
+            // 2) Remove record
+            iCol++;
+            var remS = new PButton(screenElementName) { OnClick = OnClick_RemoveRecord, Text = "-" };
+            gridPanel.AddChild(remS, new GridComponentSpec(iRow, iCol));
 
-            var addS = new PButton(screenElementName) { OnClick = OnClick_AddNew, Text = "Add" };
-            gridPanel.AddChild(addS, new GridComponentSpec(iRow, ++iCol));
-
-            //var smN = new PTextField(screenElementName)
-            //{
-            //    Text = entry.SymbolName,
-            //    MinWidth = 80,
-            //    OnTextChanged = OnTextChanged_SymbolName
-            //};
-            //gridPanel.AddChild(smN, new GridComponentSpec(iRow, ++iCol));
-
-            var symbolDictKey = GetSymbolDictKeyBySymbolName(entry.SymbolName);
-            var symbolIndex = _configToSymbolMap[configName].FindIndex(x => x.ToString() == symbolDictKey);
-            var symbol_options = _configToSymbolMap[configName];
-            var symbol_option = symbol_options[symbolIndex];
-            var smN = new PComboBox<StringListOption>(screenElementName)
+            // 3) Symbol Name
+            iCol++;
+            bool symbolDropdownAdded = false;
+            if (   ShowDropdownsForSymbolsAndFrames
+                && TryGetSymbolDropdownOption(entry.SymbolName, configName, out var symbolChosenOption, out var symbolOptions)
+                )
             {
-                Content = _configToSymbolMap[configName],
-                InitialItem = _configToSymbolMap[configName][symbolIndex],
-                OnOptionSelected = OnOptionSelected_Symbols,
-                MinWidth = 80
-            };
-            gridPanel.AddChild(smN, new GridComponentSpec(iRow, ++iCol));
-
-            //var frI = new PTextField(screenElementName)
-            //{
-            //    Text = entry.FrameIndex,
-            //    MinWidth = 35,
-            //    OnTextChanged = OnTextChanged_FrameIndex
-            //};
-            //gridPanel.AddChild(frI, new GridComponentSpec(iRow, ++iCol));
-
-            if (!int.TryParse(entry.FrameIndex, out var frameIndex))
-            {
-                frameIndex = -1;
-            }
-
-            ++iCol;
-            foreach (var symbolToFramesDict in _configToSymbolToFramesMap[configName])
-            {
-                var symbolDictKey_iteration = symbolToFramesDict.Key;
-                var frames = symbolToFramesDict.Value;
-
-                var frameDictKey = (symbolToFramesDict.Key == symbolDictKey) ? frameIndex + 1 : 0;
-                var initialItem = _configToSymbolToFramesMap[configName][symbolDictKey][frameDictKey];
-                var frI = new PComboBox<StringListOption>(screenElementName + "/" + symbolDictKey_iteration)
+                var smN = new PComboBox<StringListOption>(screenElementName)
                 {
-                    Content = frames,
-                    InitialItem = initialItem,
-                    OnOptionSelected = OnOptionSelected_Frames,
-                    MinWidth = 35
+                    Content = symbolOptions,
+                    InitialItem = symbolChosenOption,
+                    OnOptionSelected = OnOptionSelected_Symbols,
+                    FlexSize = DataGridCellFlex
                 };
-                frI.OnRealize += OnRealize_ComboBox;
-                gridPanel.AddChild(frI, new GridComponentSpec(iRow, iCol));
-
-                Dictionary<string, PComboBox<StringListOption>> subDict;
-                if (!_comboBoxes.TryGetValue(entry.Guid, out subDict))
+                gridPanel.AddChild(smN, new GridComponentSpec(iRow, iCol));
+                symbolDropdownAdded = true;
+            }
+            else
+            {
+                var smN = new PTextField(screenElementName)
                 {
-                    subDict = new Dictionary<string, PComboBox<StringListOption>>();
-                    _comboBoxes.Add(entry.Guid, subDict);
-                }
-                subDict.Add(symbolToFramesDict.Key, frI);
+                    Text = entry.SymbolName,
+                    OnTextChanged = OnTextChanged_SymbolName,
+                    FlexSize = DataGridCellFlex
+                };
+                gridPanel.AddChild(smN, new GridComponentSpec(iRow, iCol));
             }
 
+            // 4) Frame Index
+            iCol++;
+            if (   ShowDropdownsForSymbolsAndFrames
+                && symbolDropdownAdded
+                && _configToSymbolToFrameOptionsMap.TryGetValue(configName, out var symbolToFrameOptionsMap)
+                && (entry.FrameIndex == JsonValueEmpty || int.TryParse(entry.FrameIndex, out _))
+                )
+            {
+                var symbolOptionKey_current = OptionKeyByJsonValue(entry.SymbolName);
+                foreach (var symbolOptionKey_iteration in symbolToFrameOptionsMap.Keys)
+                {
+                    var symbolJsonValue_iteration = JsonValueByOptionKey(symbolOptionKey_iteration);
+                    string frameIndex_iteration = (symbolOptionKey_iteration == symbolOptionKey_current) ? entry.FrameIndex : JsonValueEmpty;
+                    TryGetFrameDropdownOption(frameIndex_iteration, configName, symbolJsonValue_iteration, out var chosenFrameOption, out var frameOptions);
+                    var frI = new PComboBox<StringListOption>(screenElementName + "/" + symbolOptionKey_iteration)
+                    {
+                        Content = frameOptions,
+                        InitialItem = chosenFrameOption,
+                        OnOptionSelected = OnOptionSelected_Frames,
+                        FlexSize = DataGridCellFlex
+                    };
+                    frI.OnRealize += OnRealize_FrameDropdown;
+                    gridPanel.AddChild(frI, new GridComponentSpec(iRow, iCol));
+                }
+            }
+            else
+            {
+                var frI = new PTextField(screenElementName)
+                {
+                    Text = entry.FrameIndex,
+                    OnTextChanged = OnTextChanged_FrameIndex,
+                    FlexSize = DataGridCellFlex
+                };
+                gridPanel.AddChild(frI, new GridComponentSpec(iRow, iCol));
+            }
+
+            // 5) IsActive checkbox
+            iCol++;
             var iA = new PCheckBox(screenElementName)
             {
                 InitialState = entry.IsActive ? 1 : 0,
                 OnChecked = OnChecked_IsActive
             };
-            gridPanel.AddChild(iA, new GridComponentSpec(iRow, ++iCol));
+            gridPanel.AddChild(iA, new GridComponentSpec(iRow, iCol));
 
+            // 6) Middle Part Filling style
+            iCol++;
             var eSt = new PComboBox<StringListOption>(screenElementName)
             {
                 Content = _fillingStyle_Options,
                 InitialItem = _fillingStyle_Options[(int)entry.FillingStyle],
                 OnOptionSelected = OnOptionSelected_FillingStyle,
-                MinWidth = 60
+                FlexSize = DataGridCellFlex
             };
-            gridPanel.AddChild(eSt, new GridComponentSpec(iRow, ++iCol));
+            gridPanel.AddChild(eSt, new GridComponentSpec(iRow, iCol));
 
+            // 7) Middle Part starting X position
+            iCol++;
             var mfX = new PTextField(screenElementName)
             {
                 Text = entry.MiddlePart_X.ToString(),
-                OnTextChanged = OnTextChanged_TemplatePart_X,
-                MinWidth = 60
+                OnTextChanged = OnTextChanged_MiddlePart_X,
+                FlexSize = DataGridCellFlex
             };
-            gridPanel.AddChild(mfX, new GridComponentSpec(iRow, ++iCol));
+            gridPanel.AddChild(mfX, new GridComponentSpec(iRow, iCol));
 
+            // 8) Middle Part Width
+            iCol++;
             var mfW = new PTextField(screenElementName)
             {
                 Text = entry.MiddlePart_Width.ToString(),
-                OnTextChanged = OnTextChanged_TemplatePart_Width,
-                MinWidth = 60
+                OnTextChanged = OnTextChanged_MiddlePart_Width,
+                FlexSize = DataGridCellFlex
             };
-            gridPanel.AddChild(mfW, new GridComponentSpec(iRow, ++iCol));
+            gridPanel.AddChild(mfW, new GridComponentSpec(iRow, iCol));
 
+            // 9) Flip every second time Checkbox
+            iCol++;
             var df = new PCheckBox(screenElementName)
             {
                 InitialState = entry.DoFlipEverySecondIteration ? 1 : 0,
                 OnChecked = OnChecked_DoFlipEverySecondIteration
             };
-            gridPanel.AddChild(df, new GridComponentSpec(iRow, ++iCol));
+            gridPanel.AddChild(df, new GridComponentSpec(iRow, iCol));
+
+            // 10) Preview button
+            iCol++;
+            if (DynamicBuildingsManager.ConfigMap.ContainsKey(configName))
+            {
+                var prvB = new PButton(screenElementName) { OnClick = OnClick_Preview, Text = "preview" };
+                gridPanel.AddChild(prvB, new GridComponentSpec(iRow, iCol));
+            }
         }
 
-        private void PrepareDropdowns(Dictionary<string, List<AnimSplittingSettings_Item>> dialogData_GroupedByConfigName)
+        private bool TryGetSymbolDropdownsForConfig(
+                string configName,
+                out List<StringListOption> availableSymsols
+            )
+        {
+            if (   !DynamicBuildingsManager.ConfigMap.TryGetValue(configName, out var config)
+                || !DynamicBuildingsManager.ConfigToBuildingDefMap.TryGetValue(config, out var originalDef)
+                )
+            {
+                availableSymsols = null;
+                return false;
+            }
+
+            availableSymsols = new List<StringListOption>() { new StringListOption(OptionKeyEmpty) };
+            foreach (var symbol in originalDef.AnimFiles[0].GetData().build.symbols)
+            {
+                var symbolName = symbol.hash.ToString();
+                if (symbolName == "ui")
+                {
+                    continue;
+                }
+
+                availableSymsols.Add(new StringListOption(symbolName));
+            }
+            return true;
+        }
+
+        private Dictionary<string, List<StringListOption>> GenerateDropdownsForSymbols(List<string> configNames)
         {
 #if DEBUG
-            Debug.Log("--- PrepareDropdowns");
+            Debug.Log("--- GenerateDropdownsForSymbols");
 #endif
-            _configToSymbolMap = new Dictionary<string, List<StringListOption>>();
-            _configToSymbolToFramesMap = new Dictionary<string, Dictionary<string, List<StringListOption>>>();
-            foreach (var kvp in dialogData_GroupedByConfigName)
+            var configToSymbolDropdownMap = new Dictionary<string, List<StringListOption>>();
+            foreach (var configName in configNames)
             {
-                var configName = kvp.Key;
-                var config = DynamicBuildingsManager.ConfigMap[configName];
-                var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
-
-                var availableSymsols = new List<StringListOption>() { new StringListOption(SymbolEmptyOptionText) };
-                var framesForSymbols = new Dictionary<string, List<StringListOption>>();
-                var availableFrames0 = new List<StringListOption>() { new StringListOption(FrameEmptyOptionText) };
-                framesForSymbols.Add(SymbolEmptyOptionText, availableFrames0);
-                foreach (var symbol in originalDef.AnimFiles[0].GetData().build.symbols)
+                if (TryGetSymbolDropdownsForConfig(configName, out var availableSymsols))
                 {
-                    var symbolName = symbol.hash.ToString();
-                    availableSymsols.Add(new StringListOption(symbolName));
-
-                    var availableFrames = new List<StringListOption>() { new StringListOption(FrameEmptyOptionText) };
-                    for (var frameIdx = 0; frameIdx < symbol.numFrames; frameIdx++)
-                    {
-                        availableFrames.Add(new StringListOption(frameIdx.ToString()));
-                    }
-                    framesForSymbols.Add(symbolName, availableFrames);
+                    configToSymbolDropdownMap.Add(configName, availableSymsols);
                 }
-                _configToSymbolMap.Add(configName, availableSymsols);
-                _configToSymbolToFramesMap.Add(configName, framesForSymbols);
             }
 #if DEBUG
             Debug.Log($"--- _symbolsForConfigs:");
-            foreach (var c in _symbolsForConfigs)
+            foreach (var c in configToSymbolDropdownMap)
             {
                 Debug.Log($"config: '{c.Key}'");
                 foreach (var s in c.Value)
@@ -398,8 +595,59 @@ namespace ExtendedBuildingWidth
                     Debug.Log($"symbol: '{s}'");
                 }
             }
+#endif
+            return configToSymbolDropdownMap;
+        }
+
+        private bool TryGetFrameDropdownsForConfig(
+                string configName,
+                out Dictionary<string, List<StringListOption>> symbolToFrameOptionsMap
+            )
+        {
+            if (!DynamicBuildingsManager.ConfigMap.TryGetValue(configName, out var config)
+                || !DynamicBuildingsManager.ConfigToBuildingDefMap.TryGetValue(config, out var originalDef)
+                )
+            {
+                symbolToFrameOptionsMap = null;
+                return false;
+            }
+
+            symbolToFrameOptionsMap = new Dictionary<string, List<StringListOption>>();
+
+            var frameEmptyOptions = new List<StringListOption>() { new StringListOption(OptionKeyEmpty) };
+            symbolToFrameOptionsMap.Add(OptionKeyEmpty, frameEmptyOptions);
+
+            foreach (var symbol in originalDef.AnimFiles[0].GetData().build.symbols)
+            {
+                var symbolName = symbol.hash.ToString();
+                if (symbolName == "ui")
+                {
+                    continue;
+                }
+
+                var framesOptions = new List<StringListOption>() { new StringListOption(OptionKeyEmpty) };
+                for (var frameIdx = 0; frameIdx < symbol.numFrames; frameIdx++)
+                {
+                    framesOptions.Add(new StringListOption(frameIdx.ToString()));
+                }
+                symbolToFrameOptionsMap.Add(symbolName, framesOptions);
+            }
+            return true;
+        }
+
+        private Dictionary<string, Dictionary<string, List<StringListOption>>> GenerateDropdownsForFrames(List<string> configNames)
+        {
+            var configToSymbolToFramesDropdownsMap = new Dictionary<string, Dictionary<string, List<StringListOption>>>();
+            foreach (var configName in configNames)
+            {
+                if (TryGetFrameDropdownsForConfig(configName, out var framesForSymbols))
+                {
+                    configToSymbolToFramesDropdownsMap.Add(configName, framesForSymbols);
+                }
+            }
+#if DEBUG
             Debug.Log($"--- _framesForSymbolsForConfigs:");
-            foreach (var c in _framesForSymbolsForConfigs)
+            foreach (var c in configToSymbolToFramesDropdownsMap)
             {
                 Debug.Log($"config: '{c.Key}'");
                 foreach (var s in c.Value)
@@ -412,89 +660,72 @@ namespace ExtendedBuildingWidth
                 }
             }
 #endif
+            return configToSymbolToFramesDropdownsMap;
         }
 
-        private PScrollPane GenerateRecordsPanel()
+        private PScrollPane CreateScrollForPanel(PPanel panel)
         {
-#if DEBUG
-            Debug.Log("--- GenerateRecordsPanel");
-#endif
-            GenerateTitles();
+            var scrollPane = new PScrollPane()
+            {
+                Child = panel,
+                TrackSize = 20,
+                ScrollHorizontal = false,
+                ScrollVertical = true,
+                AlwaysShowHorizontal = false,
+                AlwaysShowVertical = false
+            };
+            return scrollPane;
+        }
 
+        private PPanel GenerateDataPanel()
+        {
             var dialogData_GroupedByConfigName = _dialogData.GroupBy(r => r.ConfigName).ToDictionary(t => t.Key, y => y.Select(r => r).ToList());
 
-            PrepareDropdowns(dialogData_GroupedByConfigName);
+            var configNames = dialogData_GroupedByConfigName.Keys.ToList();
+            _configToSymbolDropdownMap = GenerateDropdownsForSymbols(configNames);
+            _configToSymbolToFrameOptionsMap = GenerateDropdownsForFrames(configNames);
 
-            var gridPanelConfigs = new PGridPanel("DialogBodyGridPanelBlocks") { Margin = new RectOffset(10, 40, 10, 10) };
-            gridPanelConfigs.AddColumn(new GridColumnSpec());
-            for (var i = 0; i < dialogData_GroupedByConfigName.Keys.Count; i++)
+            var recordsPanel = new PPanel("RecordsPanel")
             {
-                gridPanelConfigs.AddRow(new GridRowSpec());
-            }
+                Direction = PanelDirection.Vertical
+            };
 
             var allBuildingsDict = SettingsManager.ListOfAllBuildings.ToDictionary(x => x.ConfigName, y => y);
 
             var iRowOuter = -1;
             foreach (var kvp in dialogData_GroupedByConfigName)
             {
+                var configName = kvp.Key;
+                var recordsOfConfig = kvp.Value;
                 ++iRowOuter;
                 var gridPanel = new PGridPanel(DialogBodyGridPanelId);
-                gridPanel.AddColumn(new GridColumnSpec(240));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                gridPanel.AddColumn(new GridColumnSpec(60));
-                gridPanel.AddColumn(new GridColumnSpec(100));
-                gridPanel.AddColumn(new GridColumnSpec(60));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                gridPanel.AddColumn(new GridColumnSpec(80));
-                for (var i = 0; i < kvp.Value.Count; i++)
+                foreach (var defaultGridColumnWidth in DefaultGridColumnWidths)
+                {
+                    gridPanel.AddColumn(new GridColumnSpec(defaultGridColumnWidth));
+                }
+                for (var i = 0; i < recordsOfConfig.Count; i++)
                 {
                     gridPanel.AddRow(new GridRowSpec());
                 }
-                gridPanelConfigs.AddChild(gridPanel, new GridComponentSpec(iRowOuter, 0));
+                recordsPanel.AddChild(gridPanel);
 
                 int iRow = -1;
-                foreach (var entry in kvp.Value)
+                foreach (var entry in recordsOfConfig)
                 {
                     ++iRow;
-                    FillRecordsPanel_Block(gridPanel, iRow, entry, allBuildingsDict);
+                    FillDataPanel_Block(gridPanel, iRow, entry, allBuildingsDict);
                 }
             }
 
-            var scrollBody = new PPanel("ScrollContent")
-            {
-                Spacing = 10,
-                Direction = PanelDirection.Vertical,
-                Alignment = TextAnchor.UpperCenter,
-                FlexSize = Vector2.right
-            };
-            scrollBody.AddChild(gridPanelConfigs);
-
-            var scrollPane = new PScrollPane()
-            {
-                ScrollHorizontal = false,
-                ScrollVertical = true,
-                Child = scrollBody,
-                FlexSize = Vector2.right,
-                TrackSize = 20,
-                AlwaysShowHorizontal = false,
-                AlwaysShowVertical = true
-            };
-
-            return scrollPane;
+            return recordsPanel;
         }
 
-        private static AnimSplittingSettings_Internal MapToInternal(AnimSplittingSettings_Item entry)
+        private static AnimSplittingSettings_Internal MapToInternal(AnimSplittingSettings_Item entry, KAnimHashedString symbolName, int frameIndex)
         {
-            var symbolName = !string.IsNullOrEmpty(entry.SymbolName) ? entry.SymbolName : "bridge";
-            var frameIndex = !string.IsNullOrEmpty(entry.FrameIndex) ? int.Parse(entry.FrameIndex) : 0;
-
             var newEntry = new AnimSplittingSettings_Internal
             {
                 ConfigName = entry.ConfigName,
-                SymbolName = new KAnimHashedString(symbolName),
+                SymbolName = symbolName,
                 FrameIndex = frameIndex,
                 IsActive = entry.IsActive,
                 MiddlePart_X = entry.MiddlePart_X,
@@ -505,33 +736,74 @@ namespace ExtendedBuildingWidth
             return newEntry;
         }
 
-        private PPanel GenerateDynamicBuildingPreviewPanel(AnimSplittingSettings_Item settings_Item)
+        public static KAnimHashedString SymbolHashOrFirstSymbolFromConfig(string symbolName, string configName)
         {
-#if DEBUG
-            Debug.Log("--- GenerateDynamicBuildingPreviewPanel");
-#endif
-            var settings_Internal = MapToInternal(settings_Item);
-            var configName = settings_Internal.ConfigName;
-            var dynamicBuildingPreviewPanel = new PPanel("DynamicBuildingPreviewPanel") { Direction = PanelDirection.Vertical };
+            if (!string.IsNullOrEmpty(symbolName))
+            {
+                return new KAnimHashedString(symbolName);
+            }
+
+            var config = DynamicBuildingsManager.ConfigMap[configName];
+            var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+            var symbol = originalDef.AnimFiles.First().GetData().build.symbols.First();
+            return symbol.hash;
+        }
+
+        public static int FrameIndexOrFirstFrameFromConfig(string frameIndex, string configName)
+        {
+            if (!string.IsNullOrEmpty(frameIndex))
+            {
+                return int.Parse(frameIndex);
+            }
+
+            return 0; // first frame for every symbol is always '0'.
+        }
+
+        private bool TryGenerateDynamicBuildingPreviewPanel(AnimSplittingSettings_Item settings_Item, out PPanel result)
+        {
+            if (!DynamicBuildingsManager.ConfigMap.TryGetValue(settings_Item.ConfigName, out var config))
+            {
+                result = null;
+                return false;
+            }
+
+            var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
+            if (DesiredBuildingWidthToShow < originalDef.WidthInCells)
+            {
+                DesiredBuildingWidthToShow = originalDef.WidthInCells;
+            }
+
+            var symbolName = SymbolHashOrFirstSymbolFromConfig(settings_Item.SymbolName, settings_Item.ConfigName);
+            var frameIndex = FrameIndexOrFirstFrameFromConfig(settings_Item.FrameIndex, settings_Item.ConfigName);
+            var settings_Internal = MapToInternal(settings_Item, symbolName, frameIndex);
+            if (!TryGenerateSpritesToShow(settings_Internal, DesiredBuildingWidthToShow, out var sprites))
+            {
+                result = null;
+                return false;
+            }
+
+            var previewPanel = new PPanel("PreviewPanel")
+            { 
+                Direction = PanelDirection.Vertical
+            };
+
             var basicInfo = GenerateBasicInfoPanel(settings_Internal);
-            dynamicBuildingPreviewPanel.AddChild(basicInfo);
-            var sprites = GenerateSpritesToShow(settings_Internal, DesiredBuildingWidthToShow);
+            previewPanel.AddChild(basicInfo);
             var panelWithCaptions = GenerateCaptionsForSprites(sprites);
-            dynamicBuildingPreviewPanel.AddChild(panelWithCaptions);
+            previewPanel.AddChild(panelWithCaptions);
             var panelWithSprites = GenerateScreenComponentsForSprites(sprites, settings_Internal.DoFlipEverySecondIteration);
-            dynamicBuildingPreviewPanel.AddChild(panelWithSprites);
-            return dynamicBuildingPreviewPanel;
+            previewPanel.AddChild(panelWithSprites);
+
+            result = previewPanel;
+            return true;
         }
 
         private PPanel GenerateBasicInfoPanel(AnimSplittingSettings_Internal settings_Internal)
         {
-#if DEBUG
-            Debug.Log("--- GenerateBasicInfoPanel");
-#endif
             var result = new PPanel()
             {
                 Direction = PanelDirection.Horizontal,
-                Margin = new RectOffset(0, 0, 10, 10)
+                Margin = new RectOffset(0, 0, 10, 20)
             };
 
             var configName = settings_Internal.ConfigName;
@@ -541,34 +813,33 @@ namespace ExtendedBuildingWidth
             var symbol = originalDef.AnimFiles.First().GetData().build.GetSymbol(settings_Internal.SymbolName);
             if (symbol == null)
             {
-                Debug.Log($"ExtendedBuildingWidth WARNING - GenerateBasicInfoPanel: symbol '{settings_Internal.SymbolName}' not found for config '{configName}'");
-                return result;
+                throw new ArgumentException($"symbolName='{settings_Internal.SymbolName}' not found for config '{configName}'");
             }
 
             var symbolFrame = symbol.GetFrame(settings_Internal.FrameIndex);
-            if (symbolFrame.symbolIdx == -1)
+            if (symbolFrame.symbolIdx == INDEX_NOT_FOUND)
             {
-                Debug.Log($"ExtendedBuildingWidth WARNING - GenerateBasicInfoPanel: symbolFrame '{settings_Internal.FrameIndex}' not found for config '{configName}' and symbol '{settings_Internal.SymbolName}'");
-                return result;
+                throw new ArgumentException($"symbolFrame '{settings_Internal.FrameIndex}' not found for config '{configName}' and symbol '{settings_Internal.SymbolName}'");
             }
 
             var texture = originalDef.AnimFiles.First().GetData().build.GetTexture(0);
 
-            var margin = new RectOffset(10, 10, 0, 0);
+            var margin = new RectOffset(20, 20, 0, 0);
             var origWidth = ((int)((symbolFrame.uvMax.x - symbolFrame.uvMin.x) * texture.width)).ToString();
+            var origPositionX = ((int)(symbolFrame.uvMin.x * texture.width)).ToString();
 
-            result.AddChild(new PLabel() { Text = $"Original width: {origWidth}", Margin = margin });
+            result.AddChild(new PLabel() { Text = $"Original X position: {origPositionX}", Margin = margin });
+            result.AddChild(new PLabel() { Text = $"Original Width: {origWidth}", Margin = margin });
             result.AddChild(new PLabel() { Text = $"Dynamic building size: {DesiredBuildingWidthToShow}", Margin = margin });
 
-            result.AddChild(new PButton() { Text = "<", Margin = margin, OnClick = OnClick_MakeSmaller });
-            result.AddChild(new PButton() { Text = ">", Margin = margin, OnClick = OnClick_MakeBigger });
+            result.AddChild(new PButton() { Text = "<", Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_MakeSmaller });
+            result.AddChild(new PButton() { Text = ">", Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_MakeBigger });
 
             return result;
         }
 
-        private List<Sprite> GenerateSpritesToShow(AnimSplittingSettings_Internal settings_Internal, int desiredBuildingWidthToShow)
+        private bool TryGenerateSpritesToShow(AnimSplittingSettings_Internal settings_Internal, int desiredBuildingWidthToShow, out List<Sprite> result)
         {
-            var sprites = new List<Sprite>();
 #if DEBUG
             Debug.Log("--- GenerateSpritesToShow");
             Debug.Log($"configName='{settings_Internal.ConfigName}', symbolName='{settings_Internal.SymbolName}', frameIndex='{settings_Internal.FrameIndex}'");
@@ -587,7 +858,8 @@ namespace ExtendedBuildingWidth
             var symbol = originalDef.AnimFiles.First().GetData().build.GetSymbol(settings_Internal.SymbolName);
             if (symbol == null)
             {
-                return sprites;
+                result = null;
+                return false;
             }
 #if DEBUG
             Debug.Log($"animSlicingSettingsItem.FrameIndex='{settings_Internal.FrameIndex}'");
@@ -597,9 +869,10 @@ namespace ExtendedBuildingWidth
             Debug.Log($"frameIdx='{frameIdx}'");
 #endif
             var symbolFrame = symbol.GetFrame(settings_Internal.FrameIndex);
-            if (symbolFrame.symbolIdx == -1)
+            if (symbolFrame.symbolIdx == INDEX_NOT_FOUND)
             {
-                return sprites;
+                result = null;
+                return false;
             }
 #if DEBUG
             Debug.Log($"origFrame: [{symbolFrame.symbolIdx}, {symbolFrame.sourceFrameNum}] - [{symbolFrame.uvMin.x}, {symbolFrame.uvMax.x}]");
@@ -613,13 +886,25 @@ namespace ExtendedBuildingWidth
                 fillingStyle: settings_Internal.FillingStyle,
                 doFlipEverySecondIteration: settings_Internal.DoFlipEverySecondIteration
             );
-            foreach (var frame in smallerFrames)
-            {
-                var sprite = DynamicAnimManager.GenerateSpriteForFrame(frame, texture);
-                sprites.Add(sprite);
-            }
 
-            return sprites;
+            try
+            {
+                var sprites = new List<Sprite>();
+                foreach (var frame in smallerFrames)
+                {
+                    var sprite = DynamicAnimManager.GenerateSpriteForFrame(frame, texture);
+                    sprites.Add(sprite);
+                }
+                result = sprites;
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("ExtendedBuildingWidth - unable to generate sprites");
+                Debug.LogWarning(e.ToString());
+                result = null;
+                return false;
+            }
         }
 
         private PPanel GenerateCaptionsForSprites(List<Sprite> sprites)
@@ -706,7 +991,6 @@ namespace ExtendedBuildingWidth
 
                 int outputWidth = (int)(sprites[spriteIdx].rect.width / sprites[spriteIdx].pixelsPerUnit);
                 int outputHeight = (int)(sprites[spriteIdx].rect.height);
-                //Debug.Log($"RectW = {sprites[spriteIdx].rect.width}, W = {outputWidth}, H = {outputHeight}, PPU = {sprites[spriteIdx].pixelsPerUnit}");
                 gridPanelWithSprites.AddChild(ppanel, new GridComponentSpec(0, columnIdx));
             }
 
@@ -715,20 +999,23 @@ namespace ExtendedBuildingWidth
 
         private PPanel GenerateControlPanel()
         {
-#if DEBUG
-            Debug.Log("--- GenerateControlPanel");
-#endif
             var controlPanel = new PPanel("ControlPanel")
             {
                 Direction = PanelDirection.Horizontal,
                 Spacing = SpacingInPixels,
-                Margin = new RectOffset(10, 10, 10, 10)
+                Margin = new RectOffset(40, 40, 10, 10)
             };
             var cbShowTechName = new PCheckBox();
             cbShowTechName.InitialState = ShowTechName ? 1 : 0;
             cbShowTechName.Text = "Show tech names";
             cbShowTechName.OnChecked = OnChecked_ShowTechName;
             controlPanel.AddChild(cbShowTechName);
+
+            var cbShowDropdowns = new PCheckBox();
+            cbShowDropdowns.InitialState = ShowDropdownsForSymbolsAndFrames ? 1 : 0;
+            cbShowDropdowns.Text = "Show Dropdowns for Symbols and Frames";
+            cbShowDropdowns.OnChecked = OnChecked_ShowDropdownsForSymbolsAndFrames;
+            controlPanel.AddChild(cbShowDropdowns);
 
             var btnAdd = new PButton();
             btnAdd.Text = "Add or remove records";
@@ -738,45 +1025,35 @@ namespace ExtendedBuildingWidth
             return controlPanel;
         }
 
-        private List<AnimSplittingSettings> MapDialogToSource(List<AnimSplittingSettings_Item> dialogData)
+        private AnimSplittingSettings MapToSource(AnimSplittingSettings_Item entry)
         {
-            var result = new List<AnimSplittingSettings>();
-            foreach (var entry in dialogData)
+            var result = new AnimSplittingSettings()
             {
-                var sourceRec = new AnimSplittingSettings()
-                {
-                    ConfigName = entry.ConfigName,
-                    SymbolName = entry.SymbolName,
-                    FrameIndex = entry.FrameIndex,
-                    IsActive = entry.IsActive,
-                    MiddlePart_X = entry.MiddlePart_X,
-                    MiddlePart_Width = entry.MiddlePart_Width,
-                    FillingMethod = entry.FillingStyle,
-                    DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
-                };
-                result.Add(sourceRec);
+                ConfigName = entry.ConfigName,
+                SymbolName = entry.SymbolName,
+                FrameIndex = entry.FrameIndex,
+                IsActive = entry.IsActive,
+                MiddlePart_X = entry.MiddlePart_X,
+                MiddlePart_Width = entry.MiddlePart_Width,
+                FillingMethod = entry.FillingStyle,
+                DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
             };
             return result;
         }
 
-        private List<AnimSplittingSettings_Item> MapSourceToDialog(List<AnimSplittingSettings> sourceData)
+        private AnimSplittingSettings_Item MapToDialog(AnimSplittingSettings entry)
         {
-            var result = new List<AnimSplittingSettings_Item>();
-            foreach (var entry in sourceData)
+            var result = new AnimSplittingSettings_Item()
             {
-                var newRec = new AnimSplittingSettings_Item()
-                {
-                    Guid = Guid.NewGuid(),
-                    ConfigName = entry.ConfigName,
-                    SymbolName = entry.SymbolName,
-                    FrameIndex = entry.FrameIndex,
-                    IsActive = entry.IsActive,
-                    MiddlePart_X = entry.MiddlePart_X,
-                    MiddlePart_Width = entry.MiddlePart_Width,
-                    FillingStyle = entry.FillingMethod,
-                    DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
-                };
-                result.Add(newRec);
+                Guid = Guid.NewGuid(),
+                ConfigName = entry.ConfigName,
+                SymbolName = entry.SymbolName,
+                FrameIndex = entry.FrameIndex,
+                IsActive = entry.IsActive,
+                MiddlePart_X = entry.MiddlePart_X,
+                MiddlePart_Width = entry.MiddlePart_Width,
+                FillingStyle = entry.FillingMethod,
+                DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
             };
             return result;
         }
@@ -790,7 +1067,7 @@ namespace ExtendedBuildingWidth
                 return;
             }
 
-            var dialogData = MapSourceToDialog(sourceData);
+            var dialogData = sourceData.Select(x => MapToDialog(x)).ToList();
             _dialogData.AddRange(dialogData);
 
             ActiveRecordInitialized = false;
@@ -839,62 +1116,101 @@ namespace ExtendedBuildingWidth
             return true;
         }
 
+        private void RedrawFrameDropdownForSymbol(string symbolOptionKey, AnimSplittingSettings_Item record)
+        {
+            var symbolToFrameDropdownGoMap = _dialogDataRecordToFrameDropdownGoMap[record.Guid];
+            foreach (var symbolToFrameDropdownGo in symbolToFrameDropdownGoMap)
+            {
+                var symbolOptionKey_iteration = symbolToFrameDropdownGo.Key;
+                var frameDropdownGo = symbolToFrameDropdownGo.Value;
+
+                if (symbolOptionKey == symbolOptionKey_iteration)
+                {
+                    frameDropdownGo.SetActive(true);
+                    TryGetFrameDropdownOption(JsonValueEmpty, record.ConfigName, record.SymbolName, out var frameChosenOption, out _);
+                    PComboBox<StringListOption>.SetSelectedItem(frameDropdownGo, frameChosenOption, false);
+                }
+                else
+                {
+                    frameDropdownGo.SetActive(false);
+                }
+            }
+        }
+
+        private string OptionKeyByJsonValue(string jsonValue)
+        {
+            return (jsonValue != JsonValueEmpty) ? jsonValue : OptionKeyEmpty;
+        }
+
+        private string JsonValueByOptionKey(string optionKey)
+        {
+            return (optionKey != OptionKeyEmpty) ? optionKey : JsonValueEmpty;
+        }
+
         private void OnDialogClosed(string option)
         {
             if (option != DialogOption_Ok)
             {
                 return;
             }
-            var newRez = MapDialogToSource(_dialogData);
+            var newRez = _dialogData.Select(x => MapToSource(x)).ToList();
             _modSettings.SetAnimSplittingSettings(newRez);
+        }
+
+        private void OnTextChanged_MiddlePart_X(GameObject source, string text)
+        {
+            if (   !TryGetRecordByScreenElementName(source.name, out var record)
+                || !int.TryParse(text, out var parsed)
+                )
+            {
+                source.GetComponent<TMP_InputField>().text = record.MiddlePart_X.ToString();
+                return;
+            }
+            record.MiddlePart_X = parsed;
+            RebuildPreviewPanel(record);
+        }
+
+        private void OnTextChanged_MiddlePart_Width(GameObject source, string text)
+        {
+            if (   !TryGetRecordByScreenElementName(source.name, out var record)
+                || !int.TryParse(text, out var parsed)
+                )
+            {
+                source.GetComponent<TMP_InputField>().text = record.MiddlePart_Width.ToString();
+                return;
+            }
+            record.MiddlePart_Width = parsed;
+            RebuildPreviewPanel(record);
         }
 
         private void OnTextChanged_SymbolName(GameObject source, string text)
         {
-            if (!TryGetRecordByScreenElementName(source.name, out var record))
+            var jsonValueCandidate = text;
+            if (!TryGetRecordByScreenElementName(source.name, out var record)
+                || DynamicBuildingsManager.ConfigMap.TryGetValue(record.ConfigName, out _)
+                    && !TryGetSymbolDropdownOption(jsonValueCandidate, record.ConfigName, out _, out _)
+                )
             {
+                source.GetComponent<TMP_InputField>().text = record.SymbolName;
                 return;
             }
-            record.SymbolName = text;
+            record.SymbolName = jsonValueCandidate;
+            RebuildPreviewPanel(record);
         }
 
         private void OnTextChanged_FrameIndex(GameObject source, string text)
         {
-            if (!TryGetRecordByScreenElementName(source.name, out var record))
+            var jsonValueCandidate = text;
+            if (   !TryGetRecordByScreenElementName(source.name, out var record)
+                ||     DynamicBuildingsManager.ConfigMap.TryGetValue(record.ConfigName, out _)
+                    && !TryGetFrameDropdownOption(jsonValueCandidate, record.ConfigName, record.SymbolName, out _, out _)
+                )
             {
+                source.GetComponent<TMP_InputField>().text = record.FrameIndex;
                 return;
             }
-            if (!int.TryParse(text, out var parsed) && !string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-            record.FrameIndex = text;
-        }
-
-        private void OnTextChanged_TemplatePart_X(GameObject source, string text)
-        {
-            if (!TryGetRecordByScreenElementName(source.name, out var record))
-            {
-                return;
-            }
-            if (!int.TryParse(text, out var parsed))
-            {
-                return;
-            }
-            record.MiddlePart_X = parsed;
-        }
-
-        private void OnTextChanged_TemplatePart_Width(GameObject source, string text)
-        {
-            if (!TryGetRecordByScreenElementName(source.name, out var record))
-            {
-                return;
-            }
-            if (!int.TryParse(text, out var parsed))
-            {
-                return;
-            }
-            record.MiddlePart_Width = parsed;
+            record.FrameIndex = jsonValueCandidate;
+            RebuildPreviewPanel(record);
         }
 
         private void OnOptionSelected_FillingStyle(GameObject source, StringListOption option)
@@ -904,11 +1220,12 @@ namespace ExtendedBuildingWidth
                 return;
             }
             int index = _fillingStyle_Options.IndexOf(option);
-            if (index < 0 || index >= _fillingStyle_Options.Count)
+            if (index == INDEX_NOT_FOUND)
             {
                 return;
             }
             record.FillingStyle = (FillingStyle)index;
+            RebuildPreviewPanel(record);
         }
 
         private void OnOptionSelected_Symbols(GameObject source, StringListOption option)
@@ -917,82 +1234,51 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-            int index = _configToSymbolMap[record.ConfigName].IndexOf(option);
-            if (index < 0 || index >= _configToSymbolMap[record.ConfigName].Count)
-            {
-                return;
-            }
-            var symbolDictKey = _configToSymbolMap[record.ConfigName][index].ToString();
-            record.SymbolName = index > 0 ? symbolDictKey : "";
-            record.FrameIndex = "";
-
-            foreach (var xx in _gameObjects[record.Guid])
-            {
-                var go = xx.Value;
-                go.SetActive(symbolDictKey == xx.Key);
-                if (symbolDictKey == xx.Key)
-                {
-                    var opt = new StringListOption(FrameEmptyOptionText);
-                    PComboBox<StringListOption>.SetSelectedItem(go, opt, false);
-                }
-            }
+            // no need - we garantee that the value is from a dropdown
+            //TryGetSymbolDropdownOption(option.ToString(), record.ConfigName, out var chosenOption, out _);
+            var symbolOptionKey = option.ToString();
+            record.SymbolName = JsonValueByOptionKey(symbolOptionKey);
+            record.FrameIndex = JsonValueEmpty;
+            RedrawFrameDropdownForSymbol(symbolOptionKey, record);
+            RebuildPreviewPanel(record);
         }
 
         private void OnOptionSelected_Frames(GameObject source, StringListOption option)
         {
-            //if (!TryGetRecordByScreenElementName(source.name, out var record))
-            //{
-            //    return;
-            //}
-            //var recordGuid = record.Guid;
             var split = source.name.Split('/');
             var recordGuid = Guid.Parse(split[0]);
-            var symbolDictKey0 = split[1];
-            if (!TryGetRecord(recordGuid, out var record))
+            var symbolOptionKey0 = split[1];
+            if (   !TryGetRecord(recordGuid, out var record)
+                // no need - we garantee that the value is from a dropdown
+                //|| !TryGetFrameDropdownOption(option.ToString(), record.ConfigName, record.SymbolName, out var chosenOption, out _)
+                )
             {
                 return;
             }
-
-            var symbolDictKey = GetSymbolDictKeyBySymbolName(record.SymbolName);
-            var frameDictKey = !string.IsNullOrEmpty(record.FrameIndex) ? record.FrameIndex : FrameEmptyOptionText;
-            int index = _configToSymbolToFramesMap[record.ConfigName][symbolDictKey].IndexOf(option);
-            if (index < 0 || index >= _configToSymbolToFramesMap[record.ConfigName][symbolDictKey].Count)
-            {
-                return;
-            }
-            record.FrameIndex = index > 0 ? (index-1).ToString() : "";
+            var frameOptionKey = option.ToString();
+            record.FrameIndex = JsonValueByOptionKey(frameOptionKey);
+            RebuildPreviewPanel(record);
         }
 
-        private string GetSymbolDictKeyBySymbolName(string symbolName)
+        private void OnRealize_FrameDropdown(GameObject source)
         {
-            return !string.IsNullOrEmpty(symbolName) ? symbolName : SymbolEmptyOptionText;
-        }
-
-        private void OnRealize_ComboBox(GameObject source)
-        {
-            //if (!TryGetRecordByScreenElementName(source.name, out var record))
-            //{
-            //    return;
-            //}
-            //var recordGuid = record.Guid;
-            //string symbolDictKey ????????????;
             var split = source.name.Split('/');
             var recordGuid = Guid.Parse(split[0]);
-            var symbolDictKey = split[1];
+            var symbolOptionKey_candidate = split[1];
 
             Dictionary<string, GameObject> subDict;
-            if (!_gameObjects.TryGetValue(recordGuid, out subDict))
+            if (!_dialogDataRecordToFrameDropdownGoMap.TryGetValue(recordGuid, out subDict))
             {
                 subDict = new Dictionary<string, GameObject>();
-                _gameObjects.Add(recordGuid, subDict);
+                _dialogDataRecordToFrameDropdownGoMap.Add(recordGuid, subDict);
             }
-            subDict.Add(symbolDictKey, source);
+            subDict.Add(symbolOptionKey_candidate, source);
 
             bool activeFlag = false;
             if (TryGetRecord(recordGuid, out var record))
             {
                 activeFlag =   recordGuid == record.Guid
-                            && symbolDictKey == GetSymbolDictKeyBySymbolName(record.SymbolName);
+                            && symbolOptionKey_candidate == OptionKeyByJsonValue(record.SymbolName);
             }
             source.SetActive(activeFlag);
         }
@@ -1006,7 +1292,7 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-            record.IsActive = (newState == 1);
+            record.IsActive = (newState == PCheckBox.STATE_CHECKED);
         }
 
         private void OnChecked_DoFlipEverySecondIteration(GameObject source, int state)
@@ -1018,17 +1304,27 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-            record.DoFlipEverySecondIteration = (newState == 1);
+            record.DoFlipEverySecondIteration = (newState == PCheckBox.STATE_CHECKED);
+            RebuildPreviewPanel(record);
         }
 
         private void OnChecked_ShowTechName(GameObject source, int state)
         {
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
-            ShowTechName = (newState == 1);
+            ShowTechName = (newState == PCheckBox.STATE_CHECKED);
+            RebuildDataPanel();
         }
-        
-        private void OnClick_ConfigName(GameObject source)
+
+        private void OnChecked_ShowDropdownsForSymbolsAndFrames(GameObject source, int state)
+        {
+            int newState = (state + 1) % 2;
+            PCheckBox.SetCheckState(source, newState);
+            ShowDropdownsForSymbolsAndFrames = (newState == PCheckBox.STATE_CHECKED);
+            RebuildDataPanel();
+        }
+
+        private void OnClick_Preview(GameObject source)
         {
             if (!TryGetRecordByScreenElementName(source.name, out var record))
             {
@@ -1036,7 +1332,7 @@ namespace ExtendedBuildingWidth
             }
             ActiveRecordInitialized = true;
             ActiveRecordId = GetRecordId(record);
-            RebuildBodyAndShow();
+            RebuildPreviewPanel(record);
         }
 
         private void OnClick_AddNew(GameObject source)
@@ -1049,38 +1345,57 @@ namespace ExtendedBuildingWidth
             {
                 Guid = Guid.NewGuid(),
                 ConfigName = record.ConfigName,
-                SymbolName = "",
-                FrameIndex = "",
+                SymbolName = JsonValueEmpty,
+                FrameIndex = JsonValueEmpty,
                 FillingStyle = FillingStyle.Stretch,
                 IsActive = true,
-                MiddlePart_X = 130,
-                MiddlePart_Width = 50,
+                MiddlePart_X = DefaultMiddlePartX,
+                MiddlePart_Width = DefaultMiddlePartWidth,
                 DoFlipEverySecondIteration = false
             };
-            _dialogData.Add(newRecord);
+            var lastIndex = _dialogData.FindLastIndex(x => x.ConfigName == record.ConfigName);
+            _dialogData.Insert(lastIndex + 1, newRecord);
             ActiveRecordInitialized = false;
             ActiveRecordId = default;
-            RebuildBodyAndShow();
+            RebuildDataPanel();
+        }
+
+        private void OnClick_RemoveRecord(GameObject source)
+        {
+            if (!TryGetRecordByScreenElementName(source.name, out var record))
+            {
+                return;
+            }
+            _dialogData.Remove(record);
+            ActiveRecordInitialized = false;
+            ActiveRecordId = default;
+            RebuildDataPanel();
         }
 
         private void OnClick_MakeSmaller(GameObject source)
         {
-            if (DesiredBuildingWidthToShow - 1 < MinBuildingWidthToShow)
+            if (   !TryGetRecord(ActiveRecordId, out var record)
+                || !DynamicBuildingsManager.ConfigMap.TryGetValue(record.ConfigName, out var config)
+                || !DynamicBuildingsManager.ConfigToBuildingDefMap.TryGetValue(config, out var originalDef)
+                || DesiredBuildingWidthToShow - 1 < originalDef.WidthInCells
+                )
             {
                 return;
             }
             DesiredBuildingWidthToShow--;
-            RebuildBodyAndShow();
+            RebuildPreviewPanel(record);
         }
 
         private void OnClick_MakeBigger(GameObject source)
         {
-            if (DesiredBuildingWidthToShow + 1 > MaxBuildingWidthToShow)
+            if (   DesiredBuildingWidthToShow + 1 > MaxBuildingWidthToShow
+                || !TryGetRecord(ActiveRecordId, out var record)
+                )
             {
                 return;
             }
             DesiredBuildingWidthToShow++;
-            RebuildBodyAndShow();
+            RebuildPreviewPanel(record);
         }
 
         private void OnClick_AddRemoveRecords(GameObject source)

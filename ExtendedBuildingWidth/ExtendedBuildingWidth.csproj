@@ -12,6 +12,7 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <LangVersion>9</LangVersion>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -80,6 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnimSplittingSettings.cs" />
+    <Compile Include="AnimSplittingSettings_Internal.cs" />
     <Compile Include="BuildingDescription.cs" />
     <Compile Include="Dialog_AddRemoveAnimSlicingSettings.cs" />
     <Compile Include="Dialog_AddRemoveRecords.cs" />
@@ -90,6 +92,7 @@
     <Compile Include="ExtendableConfigSettings.cs" />
     <Compile Include="FillingStyle.cs" />
     <Compile Include="Harmony_Patches.cs" />
+    <Compile Include="IsExternalInit.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="ModSettings.cs" />
     <Compile Include="PPanelWithClearableChildren.cs" />

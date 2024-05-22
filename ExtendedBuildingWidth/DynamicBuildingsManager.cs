@@ -27,7 +27,7 @@ namespace ExtendedBuildingWidth
                 IBuildingConfig config;
                 if (!ConfigMap.TryGetValue(configSettings.ConfigName, out config))
                 {
-                    Debug.Log($"ExtendedBuildingWidth WARNING - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
+                    Debug.LogWarning($"ExtendedBuildingWidth - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
                     continue;
                 }
 
@@ -92,8 +92,8 @@ namespace ExtendedBuildingWidth
                 }
                 catch (Exception e)
                 {
-                    Debug.Log($"ExtendedBuildingWidth WARNING - exception while register buildings for config {configSettings.ConfigName}");
-                    Debug.Log(e.ToString());
+                    Debug.LogWarning($"ExtendedBuildingWidth - exception while register buildings for config {configSettings.ConfigName}");
+                    Debug.LogWarning(e.ToString());
                 }
             }
 
@@ -193,8 +193,8 @@ namespace ExtendedBuildingWidth
             }
             catch (Exception e)
             {
-                Debug.Log("ExtendedBuildingWidth WARNING - failed to apply compability with 'High_Pressure_Applications'");
-                Debug.Log(e.ToString());
+                Debug.LogWarning("ExtendedBuildingWidth - failed to apply compability with 'High_Pressure_Applications'");
+                Debug.LogWarning(e.ToString());
             }
         }
 
@@ -561,7 +561,8 @@ namespace ExtendedBuildingWidth
                         }
                         catch (Exception e)
                         {
-                            Debug.LogWarning("ExtendedBuildingWidth WARNING - " + e.Message);
+                            Debug.LogWarning("ExtendedBuildingWidth - unable to add config to dict");
+                            Debug.LogWarning(e.ToString());
                         }
                     }
 

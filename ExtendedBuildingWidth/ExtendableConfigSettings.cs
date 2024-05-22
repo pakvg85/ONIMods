@@ -2,9 +2,9 @@
 {
     public class ExtendableConfigSettings
     {
-        public string ConfigName { get; set; }
-        public int MinWidth { get; set; }
-        public int MaxWidth { get; set; }
-        public float AnimStretchModifier { get; set; }
+        public string ConfigName { get; init; }
+        public int MinWidth { get; init; }
+        public int MaxWidth { get; init; }
+        public float AnimStretchModifier { get; init; }
     }
 }

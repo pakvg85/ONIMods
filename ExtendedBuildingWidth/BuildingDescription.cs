@@ -2,8 +2,8 @@
 {
     public class BuildingDescription
     {
-        public string ConfigName { get; set; }
-        public string Caption { get; set; }
-        public string Desc { get; set; }
+        public string ConfigName { get; init; }
+        public string Caption { get; init; }
+        public string Desc { get; init; }
     }
 }
