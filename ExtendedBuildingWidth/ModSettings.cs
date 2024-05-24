@@ -42,9 +42,11 @@ namespace ExtendedBuildingWidth
         [JsonProperty]
         public string ExtendableConfigSettings
         {
-            get { return _extendableConfigSettings; }
-            set { _extendableConfigSettings = value;
-                  _extendableConfigSettings_Hsoe.Value = value;
+            get => _extendableConfigSettings;
+            set
+            {
+                _extendableConfigSettings = value;
+                _extendableConfigSettings_Hsoe.Value = value;
             }
         }
         private string _extendableConfigSettings;
@@ -52,7 +54,7 @@ namespace ExtendedBuildingWidth
         [JsonProperty]
         public string AnimSplittingSettings
         {
-            get { return _animSplittingSettings; }
+            get => _animSplittingSettings;
             set
             {
                 _animSplittingSettings = value;
@@ -64,7 +66,7 @@ namespace ExtendedBuildingWidth
         [JsonProperty]
         public string ConfigNameToAnimNameMap
         {
-            get { return _configNameToAnimNameMap; }
+            get => _configNameToAnimNameMap;
             set
             {
                 _configNameToAnimNameMap = value;
@@ -73,13 +75,13 @@ namespace ExtendedBuildingWidth
         }
         private string _configNameToAnimNameMap;
 
-        [Option("Config Settings GUI")]
+        [Option("STRINGS.UI.MODSETTINGS.BUTTON_STARTDIALOG_CONFIGMAIN")]
         public System.Action<object> Button_EditConfigJson => _dialog_EditConfigJson.CreateAndShow;
 
-        [Option("Anim Slicing Settings GUI")]
+        [Option("STRINGS.UI.MODSETTINGS.BUTTON_STARTDIALOG_ANIMSLICING")]
         public System.Action<object> Button_EditAnimSlicingSettings => _dialog_EditAnimSlicingSettings.CreateAndShow;
 
-        [Option("Create list of all in-game buildings", "Create a text file with all available buildings in the game")]
+        [Option("STRINGS.UI.MODSETTINGS.BUTTON_CREATEALLBUILDINGNAMES", "STRINGS.UI.MODSETTINGS.BUTTON_CREATEALLBUILDINGNAMES_TOOLTIP")]
         public System.Action<object> Button_CreateFileWithAllAvailableBuildings => SettingsManager.CreateFileWithAllAvailableBuildings;
 
         public void SetExtendableConfigSettings(List<ExtendableConfigSettings> src)
@@ -101,7 +103,11 @@ namespace ExtendedBuildingWidth
             ConfigNameToAnimNameMap = JsonConvert.SerializeObject(src);
         }
 
-        public Dictionary<string, string> GetConfigNameToAnimNamesMap() => JsonConvert.DeserializeObject<Dictionary<string, string>>(ConfigNameToAnimNameMap);
+        /// <summary>
+        /// This dictionary contains records that are only relevant to 'AnimSplittingSettings'.
+        /// Do not confuse with 'DynamicBuildingsManager.ConfigNameToAnimNameMap'.
+        /// </summary>
+        public Dictionary<string, string> GetConfigNameToAnimNameMap() => JsonConvert.DeserializeObject<Dictionary<string, string>>(ConfigNameToAnimNameMap);
 
         private readonly SettingsManager _settingsManager;
         private readonly Dialog_EditConfigJson _dialog_EditConfigJson;

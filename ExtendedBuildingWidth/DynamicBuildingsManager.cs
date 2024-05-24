@@ -13,14 +13,11 @@ namespace ExtendedBuildingWidth
         {
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
-            var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNamesMap();
+            var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNameMap();
 
-            //var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
             var splitSettingsList = dummyModSettings.GetAnimSplittingSettingsList();
             Dictionary<string, List<AnimSplittingSettings>> splittingSettingsDict =
                 splitSettingsList.GroupBy(r => r.ConfigName).ToDictionary(t => t.Key, t => t.Select(r => r).ToList());
-
-            //var splittingSettings = dummyModSettings.GetAnimSplittingSettingsList().ToDictionary(x => x.ConfigName, y => y);
 
             foreach (var configSettings in configsToBeExtended)
             {
@@ -52,18 +49,16 @@ namespace ExtendedBuildingWidth
                         var widthInCells = dynamicDef.WidthInCells;
                         var widthInCellsDelta = widthInCells - originalWidth;
 
-                        bool isOldStyle = !configNameToAnimNamesMap.ContainsKey(configSettings.ConfigName)
-                                       || !splittingSettingsDict.ContainsKey(configSettings.ConfigName)
-                                       || !splittingSettingsDict[configSettings.ConfigName].Any(x => x.IsActive)
-                                       || widthInCellsDelta <= 0;
-
-                        if (!isOldStyle)
+                        bool canSplitAnim = false;
+                        if (   configNameToAnimNamesMap.TryGetValue(configSettings.ConfigName, out var origAnimName)
+                            && splittingSettingsDict.TryGetValue(configSettings.ConfigName, out var splittingSettingsItems)
+                            && splittingSettingsItems.Any(x => x.IsActive)
+                            && widthInCellsDelta > 0
+                            )
                         {
-                            var origAnimName = configNameToAnimNamesMap[configSettings.ConfigName];
+                            canSplitAnim = true;
                             var dynamicAnimName = GetDynamicName(origAnimName, widthInCells);
                             DynamicAnimManager.OverwriteAnimFiles(dynamicDef, dynamicAnimName);
-
-                            var splittingSettingsItems = splittingSettingsDict[configSettings.ConfigName];
                             DynamicAnimManager.SplitAnim(
                                 animFile: dynamicDef.AnimFiles.First(),
                                 widthInCellsDelta: widthInCellsDelta,
@@ -72,7 +67,7 @@ namespace ExtendedBuildingWidth
 
                         RegisterEverythingElse(dynamicDef, originalDef, config);
 
-                        if (isOldStyle)
+                        if (!canSplitAnim)
                         {
                             DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingComplete, widthInCells, originalWidth, configSettings.AnimStretchModifier);
                             DynamicAnimManager.StretchBuildingGameObject(dynamicDef.BuildingPreview, widthInCells, originalWidth, configSettings.AnimStretchModifier);
@@ -208,10 +203,7 @@ namespace ExtendedBuildingWidth
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = true;
 
             BuildingDef dynamicDef = config.CreateBuildingDef();
-            string configName = config.GetType().FullName;
-            AddConfigNameToAnimNameMap(configName, Patch_BuildingTemplates_CreateBuildingDef.AnimNameSave);
 
-            Patch_BuildingTemplates_CreateBuildingDef.AnimNameSave = string.Empty;
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = false;
             Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = 0;
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = false;
@@ -515,16 +507,6 @@ namespace ExtendedBuildingWidth
         public static bool IsOriginalForDynamicallyCreated(BuildingDef buildingDef) => OriginalDefToDynamicDefAndWidthMap.ContainsKey(buildingDef);
         public static bool IsDynamicallyCreated(BuildingDef buildingDef) => DynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (DynamicDefToOriginalDefMap[buildingDef] != buildingDef);
         public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => OriginalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && OriginalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
-        public static void AddConfigNameToAnimNameMap(string configName, string animName)
-        {
-            if (!ConfigNameToAnimNameMapGlobal.ContainsKey(configName))
-            {
-                ConfigNameToAnimNameMapGlobal.Add(configName, animName);
-            }
-        }
-        //public static string GetAnimName(string configName) => ConfigNameToAnimNameMapGlobal[configName];
-        //public static List<KeyValuePair<string, string>> GetAnimNames(string animName) => ConfigNameToAnimNameMapGlobal.Where(x => x.Value == animName).ToList();
-        //private static Dictionary<BuildingDef, IBuildingConfig> OriginalDefToConfigMap => ConfigToBuildingDefMap.ToDictionary(x => x.Value, y => y.Key);
 
         private static Dictionary<IBuildingConfig, BuildingDef> _configToBuildingDefMap;
         public static Dictionary<IBuildingConfig, BuildingDef> ConfigToBuildingDefMap
@@ -534,10 +516,7 @@ namespace ExtendedBuildingWidth
                 if (_configToBuildingDefMap == null)
                 {
                     var configTable = Traverse.Create(BuildingConfigManager.Instance).Field("configTable").GetValue() as Dictionary<IBuildingConfig, BuildingDef>;
-                    //if (configTable.Count > 0)
-                    //{
-                        _configToBuildingDefMap = configTable;
-                    //}
+                    _configToBuildingDefMap = configTable;
                 }
                 return _configToBuildingDefMap;
             }
@@ -550,22 +529,7 @@ namespace ExtendedBuildingWidth
             {
                 if (_configNameToInstanceMap == null)
                 {
-                    //_configNameToInstanceMap = ConfigToBuildingDefMap.Keys.ToDictionary(x => x.GetType().FullName, y => y);
-                    _configNameToInstanceMap = new Dictionary<string, IBuildingConfig>();
-
-                    foreach (var cfg in ConfigToBuildingDefMap.Keys.ToList())
-                    {
-                        try
-                        {
-                            _configNameToInstanceMap.Add(cfg.GetType().FullName, cfg);
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogWarning("ExtendedBuildingWidth - unable to add config to dict");
-                            Debug.LogWarning(e.ToString());
-                        }
-                    }
-
+                    _configNameToInstanceMap = ConfigToBuildingDefMap.Keys.ToDictionary(x => x.GetType().FullName, y => y);
                 }
                 return _configNameToInstanceMap;
             }
@@ -573,6 +537,36 @@ namespace ExtendedBuildingWidth
 
         public static Dictionary<BuildingDef, BuildingDef> DynamicDefToOriginalDefMap { get; } = new Dictionary<BuildingDef, BuildingDef>();
         public static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> OriginalDefToDynamicDefAndWidthMap { get; } = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
-        public static Dictionary<string, string> ConfigNameToAnimNameMapGlobal { get; } = new Dictionary<string, string>();
+
+        public static Dictionary<BuildingDef, string> BuildingDefToAnimNameMap { get; } = new Dictionary<BuildingDef, string>();
+        public static void AddBuildingDefToAnimNameMap(BuildingDef buildingDef, string animName)
+        {
+            BuildingDefToAnimNameMap.Add(buildingDef, animName);
+        }
+
+        /// <summary>
+        /// This dictionary is created for all in-game buildings.
+        /// Do not confuse with 'ModSettings.ConfigNameToAnimNameMap'.
+        /// </summary>
+        private static Dictionary<string, string> _configNameToAnimNameMap;
+        public static Dictionary<string, string> ConfigNameToAnimNameMap
+        {
+            get
+            {
+                if (_configNameToAnimNameMap == null)
+                {
+                    //ConfigMap                     configName -> IBuldingConfig
+                    //ConfigToBuildingDefMap        IBuldingConfig -> BuildingDef
+                    //BuildingDefToAnimNameMap      BuildingDef -> AnimName
+                    _configNameToAnimNameMap =
+                        (from c1 in ConfigMap
+                         join c2 in ConfigToBuildingDefMap on c1.Value equals c2.Key
+                         join c3 in BuildingDefToAnimNameMap on c2.Value equals c3.Key
+                         select new { ConfigName = c1.Key, AnimName = c3.Value })
+                        .ToDictionary(x => x.ConfigName, y => y.AnimName);
+                }
+                return _configNameToAnimNameMap;
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using static ExtendedBuildingWidth.STRINGS.UI;
 
 namespace ExtendedBuildingWidth
 {
@@ -51,13 +52,13 @@ namespace ExtendedBuildingWidth
         {
             var dialog = new PDialog("AddOrDeleteRecords")
             {
-                Title = "Add New Records",
+                Title = DIALOG_ADDREMOVE_CONFIGMAIN.DIALOG_TITLE,
                 DialogClosed = OnDialogClosed,
                 Size = new Vector2 { x = 1000, y = 700 },
                 MaxSize = new Vector2 { x = 1000, y = 700 },
                 SortKey = 300.0f
-            }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
-            .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
+            }.AddButton(DialogOption_Ok, DIALOG_COMMON_STR.BUTTON_OK, null, PUITuning.Colors.ButtonPinkStyle)
+            .AddButton(DialogOption_Cancel, DIALOG_COMMON_STR.BUTTON_CANCEL, null, PUITuning.Colors.ButtonBlueStyle);
 
             _componentScreen = null;
             _pDialog = dialog;
@@ -216,11 +217,11 @@ namespace ExtendedBuildingWidth
 
             var cbShowTechName = new PCheckBox() { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
             cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = "Show tech names";
+            cbShowTechName.Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES;
             cbShowTechName.OnChecked = OnChecked_ShowTechName;
             addRemoveDialogSettingsPanel.AddChild(cbShowTechName);
 
-            addRemoveDialogSettingsPanel.AddChild(new PLabel("LinesPerPageLabel") { Text = "Page size:" });
+            addRemoveDialogSettingsPanel.AddChild(new PLabel("LinesPerPageLabel") { Text = DIALOG_ADDREMOVE_CONFIGMAIN.LABEL_PAGESIZE });
 
             var txtLinesPerPage = new PTextField("LinesPerPageTxt");
             txtLinesPerPage.Text = RecordsPerPage.ToString();
@@ -228,7 +229,7 @@ namespace ExtendedBuildingWidth
             txtLinesPerPage.OnTextChanged = OnTextChanged_LinesPerPage;
             addRemoveDialogSettingsPanel.AddChild(txtLinesPerPage);
 
-            addRemoveDialogSettingsPanel.AddChild(new PLabel("FilterRecordsLabel") { Text = "Filter:" });
+            addRemoveDialogSettingsPanel.AddChild(new PLabel("FilterRecordsLabel") { Text = DIALOG_ADDREMOVE_CONFIGMAIN.LABEL_FILTER });
 
             var txtFilter = new PTextField("TextFilterRecords");
             txtFilter.Text = FilterText;
@@ -237,7 +238,7 @@ namespace ExtendedBuildingWidth
             addRemoveDialogSettingsPanel.AddChild(txtFilter);
 
             var btnRefresh = new PButton("BtnFilterRecords") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-            btnRefresh.Text = "Refresh";
+            btnRefresh.Text = DIALOG_ADDREMOVE_CONFIGMAIN.BUTTON_REFRESH;
             btnRefresh.OnClick = OnClick_Refresh;
             addRemoveDialogSettingsPanel.AddChild(btnRefresh);
 
@@ -253,7 +254,7 @@ namespace ExtendedBuildingWidth
             if (MaxAvailablePageNumber > 1)
             {
                 var prevPageBtn = new PButton("BtnPrevPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-                prevPageBtn.Text = "< Back";
+                prevPageBtn.Text = DIALOG_ADDREMOVE_CONFIGMAIN.BUTTON_PREVPAGE;
                 prevPageBtn.OnClick = OnClick_PrevPage;
                 pageButtonsPanel.AddChild(prevPageBtn);
             }
@@ -273,7 +274,7 @@ namespace ExtendedBuildingWidth
                 {
                     if (!tooMuchPages)
                     {
-                        pageButtonsPanel.AddChild(new PLabel() { Text = "..." });
+                        pageButtonsPanel.AddChild(new PLabel() { Text = DIALOG_ADDREMOVE_CONFIGMAIN.LABEL_PERIODS });
                         tooMuchPages = true;
                     }
                     continue;
@@ -297,7 +298,7 @@ namespace ExtendedBuildingWidth
             if (MaxAvailablePageNumber > 1)
             {
                 var nextPageBtn = new PButton("BtnNextPage") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-                nextPageBtn.Text = "Next >";
+                nextPageBtn.Text = DIALOG_ADDREMOVE_CONFIGMAIN.BUTTON_NEXTPAGE;
                 nextPageBtn.OnClick = OnClick_NextPage;
                 pageButtonsPanel.AddChild(nextPageBtn);
             }

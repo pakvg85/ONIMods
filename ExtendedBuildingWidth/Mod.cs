@@ -3,6 +3,7 @@ using KMod;
 using PeterHan.PLib.Actions;
 using PeterHan.PLib.Core;
 using PeterHan.PLib.Options;
+using static ExtendedBuildingWidth.STRINGS.UI;
 
 namespace ExtendedBuildingWidth
 {
@@ -32,12 +33,12 @@ namespace ExtendedBuildingWidth
             var actionManager = new PActionManager();
             PAction_GetSmallerBuilding = actionManager.CreateAction(
                 "ExtendedBuildingWidth.GetSmallerBuilding",
-                "Get smaller building",
+                MOD.ACTION_TITLE_GETSMALLERBUILDING,
                 new PKeyBinding(KKeyCode.X, Modifier.Alt)
             );
             PAction_GetBiggerBuilding = actionManager.CreateAction(
                 "ExtendedBuildingWidth.GetBiggerBuilding",
-                "Get bigger building",
+                MOD.ACTION_TITLE_GETBIGGERBUILDING,
                 new PKeyBinding(KKeyCode.C, Modifier.Alt)
             );
 

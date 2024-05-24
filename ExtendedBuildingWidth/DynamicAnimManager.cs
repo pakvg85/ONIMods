@@ -10,12 +10,13 @@ namespace ExtendedBuildingWidth
     public class DynamicAnimManager
     {
         const int GameCellWidth = 100;
+        const int MaxTemplatesAllowedToBeCreated = 123;
 
         public static void AddDynamicAnimsNames_To_ModLoadedKAnims()
         {
             var dummyModSettings = POptions.ReadSettings<ModSettings>() ?? new ModSettings();
             var configsToBeExtended = dummyModSettings.GetExtendableConfigSettingsList();
-            var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNamesMap();
+            var configNameToAnimNamesMap = dummyModSettings.GetConfigNameToAnimNameMap();
 
             var animTable = Traverse.Create<Assets>().Field("AnimTable").GetValue() as Dictionary<HashedString, KAnimFile>;
 
@@ -199,7 +200,8 @@ namespace ExtendedBuildingWidth
 
                     bool isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (scaledWidth - 1) <= lastFrame_OutputX + OverlappingToleranceInPixels;
                     bool mustMirrorFrame = false;
-                    while (isNextFrameRightBorderOverlappingLastFrame)
+                    int counterToPreventInfiniteLoop = -1;
+                    while (isNextFrameRightBorderOverlappingLastFrame && counterToPreventInfiniteLoop++ < MaxTemplatesAllowedToBeCreated)
                     {
                         newFrame_Width = middle_Width;
                         newFrame_X = next_NewFrame_X; // orig_X + firstFrame_Width;
@@ -225,6 +227,10 @@ namespace ExtendedBuildingWidth
                         mustMirrorFrame = doFlipEverySecondIteration ? !mustMirrorFrame : mustMirrorFrame;
 
                         isNextFrameRightBorderOverlappingLastFrame = next_ScreenOutput_X + (scaledWidth - 1) <= lastFrame_OutputX + OverlappingToleranceInPixels;
+                    }
+                    if (isNextFrameRightBorderOverlappingLastFrame && counterToPreventInfiniteLoop >= MaxTemplatesAllowedToBeCreated)
+                    {
+                        Debug.LogWarning("ExtendedBuildingWidth - too many templates created; max allowed is " + MaxTemplatesAllowedToBeCreated);
                     }
                     next_NewFrame_X = newFrame_X + (newFrame_Width - 1) + 1;
 

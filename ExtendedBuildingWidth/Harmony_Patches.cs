@@ -1,6 +1,9 @@
 ﻿using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using KMod;
+using System.Reflection;
 
 namespace ExtendedBuildingWidth
 {
@@ -9,7 +12,6 @@ namespace ExtendedBuildingWidth
     {
         public static bool CreatingDynamicBuildingDefStarted = false;
         public static int NewWidthForDynamicBuildingDef = 0;
-        public static string AnimNameSave = string.Empty;
 
         public static void Prefix(ref string id, ref int width, ref string anim, ref float[] construction_mass, out float[] __state)
         {
@@ -17,7 +19,6 @@ namespace ExtendedBuildingWidth
 
             if (CreatingDynamicBuildingDefStarted)
             {
-                AnimNameSave = anim;
                 int originalWidth = width;
                 width = NewWidthForDynamicBuildingDef;
                 id = DynamicBuildingsManager.GetDynamicName(id, width);
@@ -41,8 +42,13 @@ namespace ExtendedBuildingWidth
             }
         }
 
-        public static void Postfix(ref float[] construction_mass, ref float[] __state)
+        public static void Postfix(BuildingDef __result, ref string id, ref int width, ref string anim, ref float[] construction_mass, ref float[] __state)
         {
+            if (!CreatingDynamicBuildingDefStarted)
+            {
+                DynamicBuildingsManager.AddBuildingDefToAnimNameMap(__result, anim);
+            }
+
             if (CreatingDynamicBuildingDefStarted)
             {
                 construction_mass = __state;
@@ -158,5 +164,36 @@ namespace ExtendedBuildingWidth
         {
             DynamicAnimManager.AddDynamicAnimsNames_To_ModLoadedKAnims();
         }
+    }
+
+    [HarmonyPatch(typeof(Localization), "Initialize")]
+    public class Localization_Initialize_Patch
+    {
+        public static void Postfix() => Translate(typeof(STRINGS));
+
+        public static void Translate(Type root)
+        {
+            // Basic intended way to register strings, keeps namespace
+            Localization.RegisterForTranslation(root);
+
+            // Load user created translation files
+            LoadStrings();
+
+            // Register strings without namespace
+            // because we already loaded user transltions, custom languages will overwrite these
+            LocString.CreateLocStringKeys(root, null);
+
+            // Creates template for users to edit
+            Localization.GenerateStringsTemplate(root, Path.Combine(Manager.GetDirectory(), "strings_templates"));
+        }
+
+        private static void LoadStrings()
+        {
+            string path = Path.Combine(ModPath, "translations", Localization.GetLocale()?.Code + ".po");
+            if (File.Exists(path))
+                Localization.OverloadStrings(Localization.LoadStringsFile(path, false));
+        }
+
+        public static string ModPath => Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
     }
 }

@@ -5,8 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using static STRINGS.BUILDING.STATUSITEMS;
-using static STRINGS.DUPLICANTS.PERSONALITIES;
+using static ExtendedBuildingWidth.STRINGS.UI;
 
 namespace ExtendedBuildingWidth
 {
@@ -34,46 +33,33 @@ namespace ExtendedBuildingWidth
         private Dictionary<Guid, Dictionary<string, PComboBox<StringListOption>>> _comboBoxes = new Dictionary<Guid, Dictionary<string, PComboBox<StringListOption>>>();
         private readonly ModSettings _modSettings;
 
-        const string DialogId = "EditAnimSlicingSettings";
-        const string DialogTitle = "Edit Anim Slicing Settings";
-        const string DialogBodyGridPanelId = "EditAnimSlicingSettingsDialogBody";
-
-        const string MiddlePartAlias = "Middle Part";
-        const string KAnimSpriteAlias = "KAnim Sprite";
-        const string FillingStyleAlias = "filling style";
-        string ExpansionStyleCombobox_Tooltip = $"Stretch: {MiddlePartAlias} will be drawn stretched between left and right parts."
-                        + Environment.NewLine + $"Repeat: {MiddlePartAlias} will be drawn repeatedly starting from the left part, until the right part is reached.";
-        string DoFlipEverySecondIteration_Tooltip = $"When 'Repeat' {FillingStyleAlias} is chosen: {MiddlePartAlias} will be flipped horizontally every second time it is drawn.";
-        string IsActive_Tooltip = "Checked: dynamic buildings of this config will be drawn according to these settings."
-          + Environment.NewLine + "Unchecked: dynamic buildings of this config will be drawn old style (fully stretched from left to right).";
-        string MiddlePartX_Tooltip = $"X position (in pixels) of the original {KAnimSpriteAlias} that defines {MiddlePartAlias}.";
-        string MiddlePartWidth_Tooltip = $"Width (in pixels) of the original {KAnimSpriteAlias} that defines {MiddlePartAlias}.";
-
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
         const int SpacingInPixels = 7;
         const string OptionKeyEmpty = " ";
         public const string JsonValueEmpty = "";
+        const string FillingStyleOption_Stretch = "Stretch";
+        const string FillingStyleOption_Repeat = "Repeat";
 
         private List<int> DefaultGridColumnWidths = new List<int>()
         {
-            400,    // config name
+            360,    // config name
             30,     // + (add record)
             30,     // - (remove record)
-            120,    // symbol
-            80,     // frame index
-            80,     // enabled (IsActive)
-            120,    // middle part filling style
-            80,     // middle part pos X
-            80,     // middle part width
-            80,     // flip every second time
-            80      // preview button
+            100,    // symbol
+            100,    // frame index
+            100,    // enabled (IsActive)
+            100,    // middle part filling style
+            100,    // middle part pos X
+            100,    // middle part width
+            100,    // flip every second time
+            100     // preview button
         };
         Vector2 DataGridCellFlex { get; } = Vector2.right; // whatever value is set, it will always stretch to 100%. I don't know why.
         private List<StringListOption> _fillingStyle_Options = new List<StringListOption>()
         {
-            new StringListOption("Stretch"),
-            new StringListOption("Repeat")
+            new StringListOption(FillingStyleOption_Stretch),
+            new StringListOption(FillingStyleOption_Repeat)
         };
         private Dictionary<string, List<StringListOption>> _configToSymbolDropdownMap;
         private Dictionary<string, Dictionary<string, List<StringListOption>>> _configToSymbolToFrameOptionsMap;
@@ -82,6 +68,7 @@ namespace ExtendedBuildingWidth
         const int DefaultMiddlePartX = 50;
         const int DefaultMiddlePartWidth = 15;
         const int INDEX_NOT_FOUND = -1;
+        const int MinMiddleWidthAllowedForRepeatFillingStyle = 10;
 
         public bool ShowTechName { get; set; } = false;
         public bool ShowDropdownsForSymbolsAndFrames { get; set; } = true;
@@ -96,15 +83,15 @@ namespace ExtendedBuildingWidth
 
         public void CreateAndShow(object obj)
         {
-            var dialog = new PDialog(DialogId)
+            var dialog = new PDialog("EditAnimSlicingSettings")
             {
-                Title = DialogTitle,
+                Title = DIALOG_EDIT_ANIMSLICINGSETTINGS.DIALOG_TITLE,
                 DialogClosed = OnDialogClosed,
                 Size = new Vector2 { x = 1280, y = 900 },
                 MaxSize = new Vector2 { x = 1280, y = 900 },
                 SortKey = 200.0f
-            }.AddButton(DialogOption_Ok, "OK", null, PUITuning.Colors.ButtonPinkStyle)
-            .AddButton(DialogOption_Cancel, "CANCEL", null, PUITuning.Colors.ButtonBlueStyle);
+            }.AddButton(DialogOption_Ok, DIALOG_COMMON_STR.BUTTON_OK, null, PUITuning.Colors.ButtonPinkStyle)
+            .AddButton(DialogOption_Cancel, DIALOG_COMMON_STR.BUTTON_CANCEL, null, PUITuning.Colors.ButtonBlueStyle);
 
             GenerateInitialData();
 
@@ -283,7 +270,7 @@ namespace ExtendedBuildingWidth
 
         private PGridPanel GenerateTitles()
         {
-            var tableTitlesPanel = new PGridPanel(DialogBodyGridPanelId);
+            var tableTitlesPanel = new PGridPanel("EditAnimSlicingSettingsTitlesPanel");
             foreach (var defaultGridColumnWidth in DefaultGridColumnWidths)
             {
                 tableTitlesPanel.AddColumn(new GridColumnSpec(defaultGridColumnWidth));
@@ -293,21 +280,25 @@ namespace ExtendedBuildingWidth
 
             int iRow = 0;
             int iCol = -1;
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Config Name" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "+" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "-" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Symbol" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Frame" }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Enabled", ToolTip = IsActive_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = ExpansionStyleCombobox_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Filling Style", ToolTip = ExpansionStyleCombobox_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = MiddlePartX_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Position X", ToolTip = MiddlePartX_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = $"{MiddlePartAlias}", ToolTip = MiddlePartWidth_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Width", ToolTip = MiddlePartWidth_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Flip Every", ToolTip = DoFlipEverySecondIteration_Tooltip }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "Second Time", ToolTip = DoFlipEverySecondIteration_Tooltip }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = "preview" }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_CONFIGNAME }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ADDREC }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_DELREC }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL1 }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME1 }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW1 }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW2 }, new GridComponentSpec(iRow + 1, iCol));
             return tableTitlesPanel;
         }
 
@@ -409,7 +400,7 @@ namespace ExtendedBuildingWidth
 
                 // 1) Add new record for config
                 iCol++;
-                var addS = new PButton(screenElementName) { OnClick = OnClick_AddNew, Text = "+" };
+                var addS = new PButton(screenElementName) { OnClick = OnClick_AddNew, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_ADDREC };
                 gridPanel.AddChild(addS, new GridComponentSpec(iRow, iCol));
             }
             else
@@ -420,7 +411,7 @@ namespace ExtendedBuildingWidth
 
             // 2) Remove record
             iCol++;
-            var remS = new PButton(screenElementName) { OnClick = OnClick_RemoveRecord, Text = "-" };
+            var remS = new PButton(screenElementName) { OnClick = OnClick_RemoveRecord, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_DELREC };
             gridPanel.AddChild(remS, new GridComponentSpec(iRow, iCol));
 
             // 3) Symbol Name
@@ -540,7 +531,7 @@ namespace ExtendedBuildingWidth
             iCol++;
             if (DynamicBuildingsManager.ConfigMap.ContainsKey(configName))
             {
-                var prvB = new PButton(screenElementName) { OnClick = OnClick_Preview, Text = "preview" };
+                var prvB = new PButton(screenElementName) { OnClick = OnClick_Preview, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_PREVIEW };
                 gridPanel.AddChild(prvB, new GridComponentSpec(iRow, iCol));
             }
         }
@@ -698,7 +689,7 @@ namespace ExtendedBuildingWidth
                 var configName = kvp.Key;
                 var recordsOfConfig = kvp.Value;
                 ++iRowOuter;
-                var gridPanel = new PGridPanel(DialogBodyGridPanelId);
+                var gridPanel = new PGridPanel("EditAnimSlicingSettingsGridPanel");
                 foreach (var defaultGridColumnWidth in DefaultGridColumnWidths)
                 {
                     gridPanel.AddColumn(new GridColumnSpec(defaultGridColumnWidth));
@@ -824,16 +815,19 @@ namespace ExtendedBuildingWidth
 
             var texture = originalDef.AnimFiles.First().GetData().build.GetTexture(0);
 
-            var margin = new RectOffset(20, 20, 0, 0);
+            var margin = new RectOffset(5, 20, 0, 0);
             var origWidth = ((int)((symbolFrame.uvMax.x - symbolFrame.uvMin.x) * texture.width)).ToString();
             var origPositionX = ((int)(symbolFrame.uvMin.x * texture.width)).ToString();
 
-            result.AddChild(new PLabel() { Text = $"Original X position: {origPositionX}", Margin = margin });
-            result.AddChild(new PLabel() { Text = $"Original Width: {origWidth}", Margin = margin });
-            result.AddChild(new PLabel() { Text = $"Dynamic building size: {DesiredBuildingWidthToShow}", Margin = margin });
+            result.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_ORIGXPOS });
+            result.AddChild(new PLabel() { Text = origPositionX, Margin = margin });
+            result.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_ORIGWIDTH });
+            result.AddChild(new PLabel() { Text = origWidth, Margin = margin });
+            result.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_DYNAMICSIZE });
+            result.AddChild(new PLabel() { Text = DesiredBuildingWidthToShow.ToString(), Margin = margin });
 
-            result.AddChild(new PButton() { Text = "<", Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_MakeSmaller });
-            result.AddChild(new PButton() { Text = ">", Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_MakeBigger });
+            result.AddChild(new PButton() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_PREVIEWMAKESMALLER, Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_PreviewMakeSmaller });
+            result.AddChild(new PButton() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_PREVIEWMAKEBIGGER, Margin = margin, FlexSize = Vector2.up, OnClick = OnClick_PreviewMakeBigger });
 
             return result;
         }
@@ -935,15 +929,15 @@ namespace ExtendedBuildingWidth
                 var label = new PLabel() { DynamicSize = false };
                 if (spriteIdx == 0)
                 {
-                    label.Text = "Left part";
+                    label.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_PREVIEWLEFTPART;
                 }
                 else if (spriteIdx == sprites.Count - 1)
                 {
-                    label.Text = "Right part";
+                    label.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_PREVIEWRIGHTPART;
                 }
                 else
                 {
-                    label.Text = "Middle part";
+                    label.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.LABEL_PREVIEWMIDDLEPART;
                 }
                 gridPanelWithSprites.AddChild(label, new GridComponentSpec(0, columnIdx));
             }
@@ -1007,18 +1001,18 @@ namespace ExtendedBuildingWidth
             };
             var cbShowTechName = new PCheckBox();
             cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = "Show tech names";
+            cbShowTechName.Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES;
             cbShowTechName.OnChecked = OnChecked_ShowTechName;
             controlPanel.AddChild(cbShowTechName);
 
             var cbShowDropdowns = new PCheckBox();
             cbShowDropdowns.InitialState = ShowDropdownsForSymbolsAndFrames ? 1 : 0;
-            cbShowDropdowns.Text = "Show Dropdowns for Symbols and Frames";
+            cbShowDropdowns.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS;
             cbShowDropdowns.OnChecked = OnChecked_ShowDropdownsForSymbolsAndFrames;
             controlPanel.AddChild(cbShowDropdowns);
 
             var btnAdd = new PButton();
-            btnAdd.Text = "Add or remove records";
+            btnAdd.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_STARTDIALOGADDREMOVE;
             btnAdd.OnClick = OnClick_AddRemoveRecords;
             controlPanel.AddChild(btnAdd);
 
@@ -1153,8 +1147,19 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-            var newRez = _dialogData.Select(x => MapToSource(x)).ToList();
-            _modSettings.SetAnimSplittingSettings(newRez);
+            var newAnimSplittingSettings = _dialogData.Select(x => MapToSource(x)).ToList();
+            _modSettings.SetAnimSplittingSettings(newAnimSplittingSettings);
+
+            var configsNamesWithExistingAnims =
+                _dialogData
+                .Select(x => x.ConfigName)
+                .Distinct()
+                .Where(y => DynamicBuildingsManager.ConfigNameToAnimNameMap.ContainsKey(y))
+                .ToList();
+            var newConfigNameToAnimNamesMap =
+                configsNamesWithExistingAnims
+                .ToDictionary(x => x, y => DynamicBuildingsManager.ConfigNameToAnimNameMap[y]);
+            _modSettings.SetConfigNameToAnimNamesMap(newConfigNameToAnimNamesMap);
         }
 
         private void OnTextChanged_MiddlePart_X(GameObject source, string text)
@@ -1173,13 +1178,14 @@ namespace ExtendedBuildingWidth
         private void OnTextChanged_MiddlePart_Width(GameObject source, string text)
         {
             if (   !TryGetRecordByScreenElementName(source.name, out var record)
-                || !int.TryParse(text, out var parsed)
+                || !int.TryParse(text, out var middleWidthCandidate)
+                || record.FillingStyle == FillingStyle.Repeat && middleWidthCandidate < MinMiddleWidthAllowedForRepeatFillingStyle
                 )
             {
                 source.GetComponent<TMP_InputField>().text = record.MiddlePart_Width.ToString();
                 return;
             }
-            record.MiddlePart_Width = parsed;
+            record.MiddlePart_Width = middleWidthCandidate;
             RebuildPreviewPanel(record);
         }
 
@@ -1220,11 +1226,13 @@ namespace ExtendedBuildingWidth
                 return;
             }
             int index = _fillingStyle_Options.IndexOf(option);
-            if (index == INDEX_NOT_FOUND)
-            {
-                return;
-            }
             record.FillingStyle = (FillingStyle)index;
+            if (   record.FillingStyle == FillingStyle.Repeat
+                && record.MiddlePart_Width < MinMiddleWidthAllowedForRepeatFillingStyle)
+            {
+                record.MiddlePart_Width = MinMiddleWidthAllowedForRepeatFillingStyle;
+                // todo: refresh 'MiddlePart_Width' value on screen
+            }
             RebuildPreviewPanel(record);
         }
 
@@ -1372,7 +1380,7 @@ namespace ExtendedBuildingWidth
             RebuildDataPanel();
         }
 
-        private void OnClick_MakeSmaller(GameObject source)
+        private void OnClick_PreviewMakeSmaller(GameObject source)
         {
             if (   !TryGetRecord(ActiveRecordId, out var record)
                 || !DynamicBuildingsManager.ConfigMap.TryGetValue(record.ConfigName, out var config)
@@ -1386,7 +1394,7 @@ namespace ExtendedBuildingWidth
             RebuildPreviewPanel(record);
         }
 
-        private void OnClick_MakeBigger(GameObject source)
+        private void OnClick_PreviewMakeBigger(GameObject source)
         {
             if (   DesiredBuildingWidthToShow + 1 > MaxBuildingWidthToShow
                 || !TryGetRecord(ActiveRecordId, out var record)
