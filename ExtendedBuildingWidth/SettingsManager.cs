@@ -158,7 +158,7 @@ namespace ExtendedBuildingWidth
 
             try
             {
-                var buildingDefPrefabIdToConfigMap = DynamicBuildingsManager.ConfigToBuildingDefMap.ToDictionary(x => x.Value.PrefabID, x => x.Key);
+                var buildingDefPrefabIdToConfigMap = DynamicBuildingsManager.PrefabIdToConfigMap;
 
                 var localizationStrings = FindAllSubclassesOf_STRINGS_BUILDINGS_PREFABS();
 
@@ -469,6 +469,45 @@ namespace ExtendedBuildingWidth
             };
             result.Add(item);
 
+            //item = new AnimSplittingSettings()
+            //{
+            //    ConfigName = "WireRefinedBridgeHighWattageConfig",
+            //    SymbolName = "place",
+            //    FrameIndex = "0",
+            //    IsActive = true,
+            //    MiddlePart_X = 127,
+            //    MiddlePart_Width = 48,
+            //    FillingMethod = FillingStyle.Repeat,
+            //    DoFlipEverySecondIteration = false
+            //};
+            //result.Add(item);
+
+            //item = new AnimSplittingSettings()
+            //{
+            //    ConfigName = "WireRefinedBridgeHighWattageConfig",
+            //    SymbolName = "outlets",
+            //    FrameIndex = "0",
+            //    IsActive = true,
+            //    MiddlePart_X = 140,
+            //    MiddlePart_Width = 1,
+            //    FillingMethod = FillingStyle.Stretch,
+            //    DoFlipEverySecondIteration = false
+            //};
+            //result.Add(item);
+
+            //item = new AnimSplittingSettings()
+            //{
+            //    ConfigName = "WireRefinedBridgeHighWattageConfig",
+            //    SymbolName = "tile_fg",
+            //    FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+            //    IsActive = true,
+            //    MiddlePart_X = 38,
+            //    MiddlePart_Width = 48,
+            //    FillingMethod = FillingStyle.Repeat,
+            //    DoFlipEverySecondIteration = false
+            //};
+            //result.Add(item);
+
             return result;
         }
 
@@ -483,9 +522,9 @@ namespace ExtendedBuildingWidth
             result.Add("LogicWireBridgeConfig", "logic_bridge_kanim");
             result.Add("WireBridgeConfig", "utilityelectricbridge_kanim");
             result.Add("WireRefinedBridgeConfig", "utilityelectricbridgeconductive_kanim");
-
             result.Add("LogicRibbonBridgeConfig", "logic_ribbon_bridge_kanim");
             result.Add("WireBridgeHighWattageConfig", "heavywatttile_kanim");
+            //result.Add("WireRefinedBridgeHighWattageConfig", "heavywatttile_conductive_kanim");
 
             return result;
         }

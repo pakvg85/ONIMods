@@ -98,7 +98,7 @@ namespace ExtendedBuildingWidth
 
         public List<AnimSplittingSettings> GetAnimSplittingSettingsList() => JsonConvert.DeserializeObject<List<AnimSplittingSettings>>(AnimSplittingSettings);
 
-        public void SetConfigNameToAnimNamesMap(Dictionary<string, string> src)
+        public void SetConfigNameToAnimNameMap(Dictionary<string, string> src)
         {
             ConfigNameToAnimNameMap = JsonConvert.SerializeObject(src);
         }
@@ -125,7 +125,7 @@ namespace ExtendedBuildingWidth
             _dialog_EditAnimSlicingSettings = new Dialog_EditAnimSlicingSettings(this);
             SetExtendableConfigSettings(SettingsManager.GenerateDefaultValues_For_ExtendableConfigSettings());
             SetAnimSplittingSettings(SettingsManager.GenerateDefaultValues_For_AnimSplittingSettings());
-            SetConfigNameToAnimNamesMap(SettingsManager.GenerateDefaultValues_For_ConfigNameToAnimNamesMap());
+            SetConfigNameToAnimNameMap(SettingsManager.GenerateDefaultValues_For_ConfigNameToAnimNamesMap());
         }
     }
 }

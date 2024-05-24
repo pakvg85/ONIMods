@@ -13,7 +13,7 @@ namespace ExtendedBuildingWidth
         public static bool CreatingDynamicBuildingDefStarted = false;
         public static int NewWidthForDynamicBuildingDef = 0;
 
-        public static void Prefix(ref string id, ref int width, ref string anim, ref float[] construction_mass, out float[] __state)
+        public static void Prefix(ref string id, ref int width, ref float[] construction_mass, out float[] __state)
         {
             __state = null;
 
@@ -42,13 +42,8 @@ namespace ExtendedBuildingWidth
             }
         }
 
-        public static void Postfix(BuildingDef __result, ref string id, ref int width, ref string anim, ref float[] construction_mass, ref float[] __state)
+        public static void Postfix(ref float[] construction_mass, ref float[] __state)
         {
-            if (!CreatingDynamicBuildingDefStarted)
-            {
-                DynamicBuildingsManager.AddBuildingDefToAnimNameMap(__result, anim);
-            }
-
             if (CreatingDynamicBuildingDefStarted)
             {
                 construction_mass = __state;

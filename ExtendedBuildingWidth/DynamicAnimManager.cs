@@ -380,7 +380,6 @@ namespace ExtendedBuildingWidth
                 ConfigName = entry.ConfigName,
                 SymbolName = symbolNameHash,
                 FrameIndex = frameIndex,
-                IsActive = entry.IsActive,
                 MiddlePart_X = entry.MiddlePart_X,
                 MiddlePart_Width = entry.MiddlePart_Width,
                 FillingStyle = entry.FillingMethod,
@@ -394,6 +393,11 @@ namespace ExtendedBuildingWidth
             var result = new List<AnimSplittingSettings_Internal>();
             foreach (var entry in list)
             {
+                if (!entry.IsActive)
+                {
+                    continue;
+                }
+
                 try
                 {
                     if (   !string.IsNullOrEmpty(entry.SymbolName)

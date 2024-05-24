@@ -508,7 +508,6 @@ namespace ExtendedBuildingWidth
         public static bool IsDynamicallyCreated(BuildingDef buildingDef) => DynamicDefToOriginalDefMap.ContainsKey(buildingDef) && (DynamicDefToOriginalDefMap[buildingDef] != buildingDef);
         public static bool HasDynamicDefByOriginalDefAndWidth(BuildingDef originalDef, int defWidth) => OriginalDefToDynamicDefAndWidthMap.ContainsKey(originalDef) && OriginalDefToDynamicDefAndWidthMap[originalDef].ContainsKey(defWidth);
 
-        private static Dictionary<IBuildingConfig, BuildingDef> _configToBuildingDefMap;
         public static Dictionary<IBuildingConfig, BuildingDef> ConfigToBuildingDefMap
         {
             get
@@ -521,8 +520,21 @@ namespace ExtendedBuildingWidth
                 return _configToBuildingDefMap;
             }
         }
+        private static Dictionary<IBuildingConfig, BuildingDef> _configToBuildingDefMap;
 
-        private static Dictionary<string, IBuildingConfig> _configNameToInstanceMap;
+        public static Dictionary<string, IBuildingConfig> PrefabIdToConfigMap
+        {
+            get
+            {
+                if (_prefabIdToConfigMap == null)
+                {
+                    _prefabIdToConfigMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value.PrefabID, x => x.Key);
+                }
+                return _prefabIdToConfigMap;
+            }
+        }
+        private static Dictionary<string, IBuildingConfig> _prefabIdToConfigMap;
+
         public static Dictionary<string, IBuildingConfig> ConfigMap
         {
             get
@@ -534,21 +546,29 @@ namespace ExtendedBuildingWidth
                 return _configNameToInstanceMap;
             }
         }
+        private static Dictionary<string, IBuildingConfig> _configNameToInstanceMap;
 
         public static Dictionary<BuildingDef, BuildingDef> DynamicDefToOriginalDefMap { get; } = new Dictionary<BuildingDef, BuildingDef>();
         public static Dictionary<BuildingDef, Dictionary<int, BuildingDef>> OriginalDefToDynamicDefAndWidthMap { get; } = new Dictionary<BuildingDef, Dictionary<int, BuildingDef>>();
 
-        public static Dictionary<BuildingDef, string> BuildingDefToAnimNameMap { get; } = new Dictionary<BuildingDef, string>();
-        public static void AddBuildingDefToAnimNameMap(BuildingDef buildingDef, string animName)
+        public static Dictionary<BuildingDef, string> BuildingDefToAnimNameMap
         {
-            BuildingDefToAnimNameMap.Add(buildingDef, animName);
+            get
+            {
+                if (_buildingDefToAnimNameMap == null)
+                {
+                    _buildingDefToAnimNameMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value, x => x.Value.AnimFiles.First().name);
+                }
+                return _buildingDefToAnimNameMap;
+                ;
+            }
         }
+        private static Dictionary<BuildingDef, string> _buildingDefToAnimNameMap;
 
         /// <summary>
         /// This dictionary is created for all in-game buildings.
         /// Do not confuse with 'ModSettings.ConfigNameToAnimNameMap'.
         /// </summary>
-        private static Dictionary<string, string> _configNameToAnimNameMap;
         public static Dictionary<string, string> ConfigNameToAnimNameMap
         {
             get
@@ -568,5 +588,6 @@ namespace ExtendedBuildingWidth
                 return _configNameToAnimNameMap;
             }
         }
+        private static Dictionary<string, string> _configNameToAnimNameMap;
     }
 }

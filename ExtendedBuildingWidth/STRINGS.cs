@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ExtendedBuildingWidth
+﻿namespace ExtendedBuildingWidth
 {
     public class STRINGS
     {
@@ -42,12 +40,17 @@ namespace ExtendedBuildingWidth
             {
                 public static LocString DIALOG_TITLE = "Visual output settings";
                 public static LocString GRIDCOLUMN_CONFIGNAME = "Config name";
+                public static LocString GRIDCOLUMN_CONFIGNAME_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_ADDREC = "+";
+                public static LocString GRIDCOLUMN_ADDREC_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_DELREC = "-";
+                public static LocString GRIDCOLUMN_DELREC_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_SYMBOL1 = "Symbol";
                 public static LocString GRIDCOLUMN_SYMBOL2 = "";
+                public static LocString GRIDCOLUMN_SYMBOL_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_FRAME1 = "Frame";
                 public static LocString GRIDCOLUMN_FRAME2 = "";
+                public static LocString GRIDCOLUMN_FRAME_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_ISACTIVE1 = "Enabled";
                 public static LocString GRIDCOLUMN_ISACTIVE2 = "";
                 public static LocString GRIDCOLUMN_ISACTIVE_TOOLTIP1 = "Checked: dynamic buildings of this config will be drawn according to these settings.";
@@ -67,6 +70,7 @@ namespace ExtendedBuildingWidth
                 public static LocString GRIDCOLUMN_FLIP_TOOLTIP = "When 'Repeat' Filling style is chosen: Template will be flipped horizontally every second time it is drawn.";
                 public static LocString GRIDCOLUMN_PREVIEW1 = "Preview";
                 public static LocString GRIDCOLUMN_PREVIEW2 = "";
+                public static LocString GRIDCOLUMN_PREVIEW_TOOLTIP = "";
                 public static LocString BUTTON_ADDREC = "+";
                 public static LocString BUTTON_DELREC = "-";
                 public static LocString BUTTON_PREVIEW = "preview";

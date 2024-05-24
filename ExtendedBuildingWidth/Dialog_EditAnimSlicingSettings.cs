@@ -43,17 +43,17 @@ namespace ExtendedBuildingWidth
 
         private List<int> DefaultGridColumnWidths = new List<int>()
         {
-            360,    // config name
-            30,     // + (add record)
-            30,     // - (remove record)
+            350,    // config name
+            50,     // + (add record)
+            50,     // - (remove record)
+            100,     // preview button
             100,    // symbol
             100,    // frame index
             100,    // enabled (IsActive)
             100,    // middle part filling style
             100,    // middle part pos X
             100,    // middle part width
-            100,    // flip every second time
-            100     // preview button
+            100     // flip every second time
         };
         Vector2 DataGridCellFlex { get; } = Vector2.right; // whatever value is set, it will always stretch to 100%. I don't know why.
         private List<StringListOption> _fillingStyle_Options = new List<StringListOption>()
@@ -71,7 +71,7 @@ namespace ExtendedBuildingWidth
         const int MinMiddleWidthAllowedForRepeatFillingStyle = 10;
 
         public bool ShowTechName { get; set; } = false;
-        public bool ShowDropdownsForSymbolsAndFrames { get; set; } = true;
+        public bool ShowDropdownsForSymbolsAndFrames { get; set; } = false;
         public bool ActiveRecordInitialized { get; set; } = false;
         public Guid ActiveRecordId { get; set; } = default;
         public int DesiredBuildingWidthToShow { get; set; } = 5;
@@ -280,13 +280,15 @@ namespace ExtendedBuildingWidth
 
             int iRow = 0;
             int iCol = -1;
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_CONFIGNAME }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ADDREC }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_DELREC }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL1 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL2 }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME1 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_CONFIGNAME, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_CONFIGNAME_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ADDREC, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ADDREC_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_DELREC, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_DELREC_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
@@ -297,8 +299,6 @@ namespace ExtendedBuildingWidth
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FLIP_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW1 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_PREVIEW2 }, new GridComponentSpec(iRow + 1, iCol));
             return tableTitlesPanel;
         }
 
@@ -388,7 +388,7 @@ namespace ExtendedBuildingWidth
 
             if (iRow == 0)
             {
-                // 0) Config Name
+                // Config Name
                 iCol++;
                 GetConfigLabelTextAndTooltip(configName, allBuildingsDict, ShowTechName, out var configLabelText, out var configLabelTooltip);
                 var cnN = new PLabel(screenElementName)
@@ -398,7 +398,7 @@ namespace ExtendedBuildingWidth
                 };
                 gridPanel.AddChild(cnN, new GridComponentSpec(iRow, iCol) { Alignment = TextAnchor.MiddleLeft });
 
-                // 1) Add new record for config
+                // + (add new record)
                 iCol++;
                 var addS = new PButton(screenElementName) { OnClick = OnClick_AddNew, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_ADDREC };
                 gridPanel.AddChild(addS, new GridComponentSpec(iRow, iCol));
@@ -409,12 +409,20 @@ namespace ExtendedBuildingWidth
                 iCol++;
             }
 
-            // 2) Remove record
+            // - (remove record)
             iCol++;
             var remS = new PButton(screenElementName) { OnClick = OnClick_RemoveRecord, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_DELREC };
             gridPanel.AddChild(remS, new GridComponentSpec(iRow, iCol));
 
-            // 3) Symbol Name
+            // Preview button
+            iCol++;
+            if (DynamicBuildingsManager.ConfigMap.ContainsKey(configName))
+            {
+                var prvB = new PButton(screenElementName) { OnClick = OnClick_Preview, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_PREVIEW };
+                gridPanel.AddChild(prvB, new GridComponentSpec(iRow, iCol));
+            }
+
+            // Symbol Name
             iCol++;
             bool symbolDropdownAdded = false;
             if (   ShowDropdownsForSymbolsAndFrames
@@ -442,7 +450,7 @@ namespace ExtendedBuildingWidth
                 gridPanel.AddChild(smN, new GridComponentSpec(iRow, iCol));
             }
 
-            // 4) Frame Index
+            // Frame Index
             iCol++;
             if (   ShowDropdownsForSymbolsAndFrames
                 && symbolDropdownAdded
@@ -478,7 +486,7 @@ namespace ExtendedBuildingWidth
                 gridPanel.AddChild(frI, new GridComponentSpec(iRow, iCol));
             }
 
-            // 5) IsActive checkbox
+            // IsActive checkbox
             iCol++;
             var iA = new PCheckBox(screenElementName)
             {
@@ -487,7 +495,7 @@ namespace ExtendedBuildingWidth
             };
             gridPanel.AddChild(iA, new GridComponentSpec(iRow, iCol));
 
-            // 6) Middle Part Filling style
+            // Middle Part Filling style
             iCol++;
             var eSt = new PComboBox<StringListOption>(screenElementName)
             {
@@ -498,7 +506,7 @@ namespace ExtendedBuildingWidth
             };
             gridPanel.AddChild(eSt, new GridComponentSpec(iRow, iCol));
 
-            // 7) Middle Part starting X position
+            // Middle Part starting X position
             iCol++;
             var mfX = new PTextField(screenElementName)
             {
@@ -508,7 +516,7 @@ namespace ExtendedBuildingWidth
             };
             gridPanel.AddChild(mfX, new GridComponentSpec(iRow, iCol));
 
-            // 8) Middle Part Width
+            // Middle Part Width
             iCol++;
             var mfW = new PTextField(screenElementName)
             {
@@ -518,7 +526,7 @@ namespace ExtendedBuildingWidth
             };
             gridPanel.AddChild(mfW, new GridComponentSpec(iRow, iCol));
 
-            // 9) Flip every second time Checkbox
+            // Flip every second time Checkbox
             iCol++;
             var df = new PCheckBox(screenElementName)
             {
@@ -526,14 +534,6 @@ namespace ExtendedBuildingWidth
                 OnChecked = OnChecked_DoFlipEverySecondIteration
             };
             gridPanel.AddChild(df, new GridComponentSpec(iRow, iCol));
-
-            // 10) Preview button
-            iCol++;
-            if (DynamicBuildingsManager.ConfigMap.ContainsKey(configName))
-            {
-                var prvB = new PButton(screenElementName) { OnClick = OnClick_Preview, Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_PREVIEW };
-                gridPanel.AddChild(prvB, new GridComponentSpec(iRow, iCol));
-            }
         }
 
         private bool TryGetSymbolDropdownsForConfig(
@@ -718,7 +718,6 @@ namespace ExtendedBuildingWidth
                 ConfigName = entry.ConfigName,
                 SymbolName = symbolName,
                 FrameIndex = frameIndex,
-                IsActive = entry.IsActive,
                 MiddlePart_X = entry.MiddlePart_X,
                 MiddlePart_Width = entry.MiddlePart_Width,
                 FillingStyle = entry.FillingStyle,
@@ -839,10 +838,14 @@ namespace ExtendedBuildingWidth
             Debug.Log($"configName='{settings_Internal.ConfigName}', symbolName='{settings_Internal.SymbolName}', frameIndex='{settings_Internal.FrameIndex}'");
 #endif
             var configName = settings_Internal.ConfigName;
-
             var config = DynamicBuildingsManager.ConfigMap[configName];
-            var extendableConfigSettings = _modSettings.GetExtendableConfigSettingsList().ToDictionary(x => x.ConfigName, y => y);
-            var extendableConfigSettingsItem = extendableConfigSettings[configName];
+            var extendableConfigSettingsItem = _modSettings.GetExtendableConfigSettingsList().FirstOrDefault(x => x.ConfigName == configName);
+            if (extendableConfigSettingsItem == null)
+            {
+                result = null;
+                return false;
+            }
+
             var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
             var texture = originalDef.AnimFiles.First().GetData().build.GetTexture(0);
             int textureWidth = texture.width;
@@ -1159,7 +1162,15 @@ namespace ExtendedBuildingWidth
             var newConfigNameToAnimNamesMap =
                 configsNamesWithExistingAnims
                 .ToDictionary(x => x, y => DynamicBuildingsManager.ConfigNameToAnimNameMap[y]);
-            _modSettings.SetConfigNameToAnimNamesMap(newConfigNameToAnimNamesMap);
+            var existingDict = _modSettings.GetConfigNameToAnimNameMap();
+
+            var mergedList = newConfigNameToAnimNamesMap.ToList();
+            mergedList.AddRange(existingDict.ToList());
+            var mergedDict = mergedList
+                .GroupBy(r => r.Key)
+                .ToDictionary(t => t.Key, y => y.First().Value);
+
+            _modSettings.SetConfigNameToAnimNameMap(mergedDict);
         }
 
         private void OnTextChanged_MiddlePart_X(GameObject source, string text)
@@ -1192,7 +1203,7 @@ namespace ExtendedBuildingWidth
         private void OnTextChanged_SymbolName(GameObject source, string text)
         {
             var jsonValueCandidate = text;
-            if (!TryGetRecordByScreenElementName(source.name, out var record)
+            if (   !TryGetRecordByScreenElementName(source.name, out var record)
                 || DynamicBuildingsManager.ConfigMap.TryGetValue(record.ConfigName, out _)
                     && !TryGetSymbolDropdownOption(jsonValueCandidate, record.ConfigName, out _, out _)
                 )
