@@ -150,8 +150,6 @@ namespace ExtendedBuildingWidth
                 gridPanel.AddRow(new GridRowSpec());
             }
 
-            var dict = SettingsManager.ListOfAllBuildings.ToDictionary(x => x.ConfigName, y => y);
-
             iRow = -1;
             foreach (var entry in _dialogData)
             {
@@ -159,7 +157,7 @@ namespace ExtendedBuildingWidth
                 iCol = -1;
 
                 string configCaption = string.Empty;
-                if (dict.TryGetValue(entry.ConfigName, out var buildingDescription))
+                if (SettingsManager.AllBuildingsMap.TryGetValue(entry.ConfigName, out var buildingDescription))
                 {
                     configCaption = buildingDescription.Caption;
                 }

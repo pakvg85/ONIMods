@@ -528,7 +528,10 @@ namespace ExtendedBuildingWidth
             {
                 if (_prefabIdToConfigMap == null)
                 {
-                    _prefabIdToConfigMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value.PrefabID, x => x.Key);
+                    //_prefabIdToConfigMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value.PrefabID, x => x.Key);
+                    _prefabIdToConfigMap = ConfigToBuildingDefMap
+                        .GroupBy(r => r.Value.PrefabID)
+                        .ToDictionary(t => t.Key, y => y.First().Key);
                 }
                 return _prefabIdToConfigMap;
             }
@@ -541,7 +544,10 @@ namespace ExtendedBuildingWidth
             {
                 if (_configNameToInstanceMap == null)
                 {
-                    _configNameToInstanceMap = ConfigToBuildingDefMap.Keys.ToDictionary(x => x.GetType().FullName, y => y);
+                    //_configNameToInstanceMap = ConfigToBuildingDefMap.Keys.ToDictionary(x => x.GetType().FullName, y => y);
+                    _configNameToInstanceMap = ConfigToBuildingDefMap.Keys
+                        .GroupBy(r => r.GetType().FullName)
+                        .ToDictionary(t => t.Key, y => y.First());
                 }
                 return _configNameToInstanceMap;
             }
@@ -557,10 +563,12 @@ namespace ExtendedBuildingWidth
             {
                 if (_buildingDefToAnimNameMap == null)
                 {
-                    _buildingDefToAnimNameMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value, x => x.Value.AnimFiles.First().name);
+                    //_buildingDefToAnimNameMap = ConfigToBuildingDefMap.ToDictionary(x => x.Value, x => x.Value.AnimFiles.First().name);
+                    _buildingDefToAnimNameMap = ConfigToBuildingDefMap.Values
+                        .GroupBy(r => r)
+                        .ToDictionary(t => t.Key, y => y.First().AnimFiles.First().name);
                 }
                 return _buildingDefToAnimNameMap;
-                ;
             }
         }
         private static Dictionary<BuildingDef, string> _buildingDefToAnimNameMap;

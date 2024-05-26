@@ -116,18 +116,16 @@ namespace ExtendedBuildingWidth
         {
             _dialogData.Clear();
 
-            var allBuildings = SettingsManager.ListOfAllBuildings;
-            var dict = allBuildings.ToDictionary(x => x.ConfigName, y => y);
             var checkedConfigNames = _dialog_Parent.GetConfigNames();
             var configNames_Sorted = new SortedSet<string>(checkedConfigNames);
-            var uncheckedConfigNames = allBuildings.Where(x => !configNames_Sorted.Contains(x.ConfigName)).Select(x => x.ConfigName).ToList();
+            var uncheckedConfigNames = SettingsManager.AllBuildingsMap.Keys.Where(x => !configNames_Sorted.Contains(x)).Select(x => x).ToList();
 
             foreach (var configName in checkedConfigNames)
             {
                 string caption = string.Empty;
-                if (dict.TryGetValue(configName, out var dictEntry))
+                if (SettingsManager.AllBuildingsMap.TryGetValue(configName, out var buildingDescription))
                 {
-                    caption = dictEntry.Caption;
+                    caption = buildingDescription.Caption;
                 }
                 if (string.IsNullOrEmpty(caption))
                 {
@@ -146,9 +144,9 @@ namespace ExtendedBuildingWidth
             foreach (var configName in uncheckedConfigNames)
             {
                 string caption = string.Empty;
-                if (dict.TryGetValue(configName, out var dictEntry))
+                if (SettingsManager.AllBuildingsMap.TryGetValue(configName, out var buildingDescription))
                 {
-                    caption = dictEntry.Caption;
+                    caption = buildingDescription.Caption;
                 }
                 if (string.IsNullOrEmpty(caption))
                 {

@@ -681,8 +681,6 @@ namespace ExtendedBuildingWidth
                 Direction = PanelDirection.Vertical
             };
 
-            var allBuildingsDict = SettingsManager.ListOfAllBuildings.ToDictionary(x => x.ConfigName, y => y);
-
             var iRowOuter = -1;
             foreach (var kvp in dialogData_GroupedByConfigName)
             {
@@ -704,7 +702,7 @@ namespace ExtendedBuildingWidth
                 foreach (var entry in recordsOfConfig)
                 {
                     ++iRow;
-                    FillDataPanel_Block(gridPanel, iRow, entry, allBuildingsDict);
+                    FillDataPanel_Block(gridPanel, iRow, entry, SettingsManager.AllBuildingsMap);
                 }
             }
 

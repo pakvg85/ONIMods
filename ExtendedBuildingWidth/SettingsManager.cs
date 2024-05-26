@@ -16,18 +16,20 @@ namespace ExtendedBuildingWidth
         public const int DefaultMaxWidth = 16;
         public const float DefaultAnimStretchModifier = 1.12f;
 
-        public static List<BuildingDescription> ListOfAllBuildings
+        public static Dictionary<string, BuildingDescription> AllBuildingsMap
         {
             get
             {
                 if (_listOfAllBuildings == null)
                 {
-                    _listOfAllBuildings = GetListOfAllBuildings();
+                    _listOfAllBuildings = GetListOfAllBuildings()
+                        .GroupBy(r => r.ConfigName)
+                        .ToDictionary(t => t.Key, y => y.First());
                 }
                 return _listOfAllBuildings;
             }
         }
-        private static List<BuildingDescription> _listOfAllBuildings;
+        private static Dictionary<string, BuildingDescription> _listOfAllBuildings;
 
         public static string Get_ConfigJson_Path() => Path.GetDirectoryName(POptions.GetConfigFilePath(typeof(ModSettings)));
         public static string Get_ConfigJson_FullFileName() => POptions.GetConfigFilePath(typeof(ModSettings));
@@ -45,8 +47,6 @@ namespace ExtendedBuildingWidth
 
         public static void CreateFileWithAllAvailableBuildings(object obj)
         {
-            var allBuildingsList = ListOfAllBuildings;
-
             try
             {
                 string fullFileName = Get_AllAvailableBuildings_FullFileName();
@@ -58,7 +58,7 @@ namespace ExtendedBuildingWidth
 
                 using (StreamWriter fs = File.CreateText(fullFileName))
                 {
-                    foreach (var line in allBuildingsList)
+                    foreach (var line in AllBuildingsMap.Values)
                     {
                         fs.WriteLine(line.ConfigName + "\t" + line.Caption + "\t" + line.Desc);
                     }
