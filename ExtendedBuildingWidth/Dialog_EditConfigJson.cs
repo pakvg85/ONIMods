@@ -1,5 +1,6 @@
 ﻿using PeterHan.PLib.Core;
 using PeterHan.PLib.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -139,10 +140,10 @@ namespace ExtendedBuildingWidth
             int iRow = 0;
             int iCol = -1;
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.LABEL_CONFIGNAME }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH1 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH2 }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF1 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH1, ToolTip = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH2, ToolTip = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_MAXWIDTH_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF1, ToolTip = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF2, ToolTip = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
 
             return tableTitlesPanel;
         }
@@ -217,6 +218,7 @@ namespace ExtendedBuildingWidth
             {
                 InitialState = ShowTechName ? 1 : 0,
                 Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
+                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
                 OnChecked = OnChecked_ShowTechName
             };
             controlPanel.AddChild(cbShowTechName);

@@ -215,26 +215,34 @@ namespace ExtendedBuildingWidth
         {
             var addRemoveDialogSettingsPanel = new PPanel("AddRemoveDialogSettingsPanel") { Direction = PanelDirection.Horizontal, Spacing = SpacingInPixels };
 
-            var cbShowTechName = new PCheckBox() { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-            cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES;
-            cbShowTechName.OnChecked = OnChecked_ShowTechName;
+            var cbShowTechName = new PCheckBox()
+            {
+                Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset),
+                InitialState = ShowTechName ? 1 : 0,
+                Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
+                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
+                OnChecked = OnChecked_ShowTechName
+            };
             addRemoveDialogSettingsPanel.AddChild(cbShowTechName);
 
             addRemoveDialogSettingsPanel.AddChild(new PLabel("LinesPerPageLabel") { Text = DIALOG_ADDREMOVE_CONFIGMAIN.LABEL_PAGESIZE });
 
-            var txtLinesPerPage = new PTextField("LinesPerPageTxt");
-            txtLinesPerPage.Text = RecordsPerPage.ToString();
-            txtLinesPerPage.MinWidth = 50;
-            txtLinesPerPage.OnTextChanged = OnTextChanged_LinesPerPage;
+            var txtLinesPerPage = new PTextField("LinesPerPageTxt")
+            {
+                Text = RecordsPerPage.ToString(),
+                MinWidth = 50,
+                OnTextChanged = OnTextChanged_LinesPerPage
+            };
             addRemoveDialogSettingsPanel.AddChild(txtLinesPerPage);
 
             addRemoveDialogSettingsPanel.AddChild(new PLabel("FilterRecordsLabel") { Text = DIALOG_ADDREMOVE_CONFIGMAIN.LABEL_FILTER });
 
-            var txtFilter = new PTextField("TextFilterRecords");
-            txtFilter.Text = FilterText;
-            txtFilter.MinWidth = 200;
-            txtFilter.OnTextChanged = OnTextChanged_Filter;
+            var txtFilter = new PTextField("TextFilterRecords")
+            {
+                Text = FilterText,
+                MinWidth = 200,
+                OnTextChanged = OnTextChanged_Filter
+            };
             addRemoveDialogSettingsPanel.AddChild(txtFilter);
 
             var btnRefresh = new PButton("BtnFilterRecords") { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };

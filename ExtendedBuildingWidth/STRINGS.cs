@@ -23,6 +23,8 @@
                 public static LocString BUTTON_OK = "OK";
                 public static LocString BUTTON_CANCEL = "CANCEL";
                 public static LocString CHECKBOX_SHOWTECHNAMES = "Show tech names";
+                public static LocString CHECKBOX_SHOWTECHNAMES_TOOLTIP1 = "";
+                public static LocString CHECKBOX_SHOWTECHNAMES_TOOLTIP2 = "";
             }
 
             public class DIALOG_EDIT_MAINSETTINGS
@@ -31,8 +33,10 @@
                 public static LocString LABEL_CONFIGNAME = "Config name";
                 public static LocString GRIDCOLUMN_MAXWIDTH1 = "Max";
                 public static LocString GRIDCOLUMN_MAXWIDTH2 = "width";
+                public static LocString GRIDCOLUMN_MAXWIDTH_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_STRETCHKOEF1 = "Stretch";
                 public static LocString GRIDCOLUMN_STRETCHKOEF2 = "koef";
+                public static LocString GRIDCOLUMN_STRETCHKOEF_TOOLTIP = "";
                 public static LocString BUTTON_STARTDIALOGADDREMOVE = "Add / remove records";
             }
 
@@ -87,6 +91,8 @@
                 public static LocString LABEL_PREVIEWRIGHTPART = "Right part";
                 public static LocString LABEL_PREVIEWMIDDLEPART = "Template";
                 public static LocString CHECKBOX_SYMBOLFRAMEDROPDOWNS = "Show Dropdowns for Symbols and Frames";
+                public static LocString CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP1 = "";
+                public static LocString CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP2 = "";
                 public static LocString BUTTON_STARTDIALOGADDREMOVE = "Add / remove records";
             }
 

@@ -161,10 +161,14 @@ namespace ExtendedBuildingWidth
         {
             var addRemoveDialogSettingsPanel = new PPanel("AddRemoveDialogSettingsPanel") { Direction = PanelDirection.Horizontal, Spacing = SpacingInPixels };
 
-            var cbShowTechName = new PCheckBox() { Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset) };
-            cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES;
-            cbShowTechName.OnChecked = OnChecked_ShowTechName;
+            var cbShowTechName = new PCheckBox()
+            {
+                Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset),
+                InitialState = ShowTechName ? 1 : 0,
+                Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
+                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
+                OnChecked = OnChecked_ShowTechName
+            };
             addRemoveDialogSettingsPanel.AddChild(cbShowTechName);
 
             _dialogBodyChild.AddChild(addRemoveDialogSettingsPanel);

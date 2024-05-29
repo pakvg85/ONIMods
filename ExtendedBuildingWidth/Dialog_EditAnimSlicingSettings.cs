@@ -1045,21 +1045,29 @@ namespace ExtendedBuildingWidth
                 Spacing = SpacingInPixels,
                 Margin = new RectOffset(40, 40, 10, 10)
             };
-            var cbShowTechName = new PCheckBox();
-            cbShowTechName.InitialState = ShowTechName ? 1 : 0;
-            cbShowTechName.Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES;
-            cbShowTechName.OnChecked = OnChecked_ShowTechName;
+            var cbShowTechName = new PCheckBox()
+            {
+                InitialState = ShowTechName ? 1 : 0,
+                Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
+                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
+                OnChecked = OnChecked_ShowTechName
+            };
             controlPanel.AddChild(cbShowTechName);
 
-            var cbShowDropdowns = new PCheckBox();
-            cbShowDropdowns.InitialState = ShowDropdownsForSymbolsAndFrames ? 1 : 0;
-            cbShowDropdowns.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS;
-            cbShowDropdowns.OnChecked = OnChecked_ShowDropdownsForSymbolsAndFrames;
+            var cbShowDropdowns = new PCheckBox()
+            {
+                InitialState = ShowDropdownsForSymbolsAndFrames ? 1 : 0,
+                Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS,
+                ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP2,
+                OnChecked = OnChecked_ShowDropdownsForSymbolsAndFrames
+            };
             controlPanel.AddChild(cbShowDropdowns);
 
-            var btnAdd = new PButton();
-            btnAdd.Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_STARTDIALOGADDREMOVE;
-            btnAdd.OnClick = OnClick_AddRemoveRecords;
+            var btnAdd = new PButton()
+            {
+                Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.BUTTON_STARTDIALOGADDREMOVE,
+                OnClick = OnClick_AddRemoveRecords
+            };
             controlPanel.AddChild(btnAdd);
 
             return controlPanel;

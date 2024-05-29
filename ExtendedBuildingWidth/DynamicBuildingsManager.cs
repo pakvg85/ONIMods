@@ -21,8 +21,7 @@ namespace ExtendedBuildingWidth
 
             foreach (var configSettings in configsToBeExtended)
             {
-                IBuildingConfig config;
-                if (!ConfigMap.TryGetValue(configSettings.ConfigName, out config))
+                if (!ConfigMap.TryGetValue(configSettings.ConfigName, out var config))
                 {
                     Debug.LogWarning($"ExtendedBuildingWidth - DynamicBuildingsManager: config {configSettings.ConfigName} was not loaded");
                     continue;
@@ -60,9 +59,11 @@ namespace ExtendedBuildingWidth
                             var dynamicAnimName = GetDynamicName(origAnimName, widthInCells);
                             DynamicAnimManager.OverwriteAnimFiles(dynamicDef, dynamicAnimName);
                             DynamicAnimManager.SplitAnim(
-                                animFile: dynamicDef.AnimFiles.First(),
-                                widthInCellsDelta: widthInCellsDelta,
-                                settingsItems: splittingSettingsItems);
+                                    animFile: dynamicDef.AnimFiles.First(),
+                                    widthInCellsDelta: widthInCellsDelta,
+                                    settingsItems: splittingSettingsItems,
+                                    origAnimName
+                                );
                         }
 
                         RegisterEverythingElse(dynamicDef, originalDef, config);
@@ -381,8 +382,7 @@ namespace ExtendedBuildingWidth
         {
             DynamicDefToOriginalDefMap.Add(dynamicDef, originalDef);
 
-            Dictionary<int, BuildingDef> widthToDynamicDefMap;
-            if (!OriginalDefToDynamicDefAndWidthMap.TryGetValue(originalDef, out widthToDynamicDefMap))
+            if (!OriginalDefToDynamicDefAndWidthMap.TryGetValue(originalDef, out var widthToDynamicDefMap))
             {
                 OriginalDefToDynamicDefAndWidthMap.Add(originalDef, new Dictionary<int, BuildingDef>());
                 widthToDynamicDefMap = OriginalDefToDynamicDefAndWidthMap[originalDef];

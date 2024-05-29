@@ -26,14 +26,12 @@ namespace ExtendedBuildingWidth
             {
                 try
                 {
-                    string origAnimName;
-                    if (!configNameToAnimNamesMap.TryGetValue(item.ConfigName, out origAnimName))
+                    if (!configNameToAnimNamesMap.TryGetValue(item.ConfigName, out var origAnimName))
                     {
                         continue;
                     }
 
-                    KAnimFile origAnimFile;
-                    if (!animTable.TryGetValue(new KAnimHashedString(origAnimName), out origAnimFile))
+                    if (!animTable.TryGetValue(new KAnimHashedString(origAnimName), out var origAnimFile))
                     {
                         Debug.LogWarning($"ExtendedBuildingWidth - AddDynamicAnimsNames_To_ModLoadedKAnims: anim {origAnimName} for config {item.ConfigName} not loaded");
                         continue;
@@ -365,7 +363,8 @@ namespace ExtendedBuildingWidth
         public static void SplitAnim(
                 KAnimFile animFile,
                 int widthInCellsDelta,
-                List<AnimSplittingSettings> settingsItems
+                List<AnimSplittingSettings> settingsItems,
+                string origAnimName
             )
         {
             if (animFile == null)
@@ -417,10 +416,21 @@ namespace ExtendedBuildingWidth
             }
 #endif
 
-            var tupleToNewFramesMap = GenerateNewFramesForSymbols(animData, validSymbolNames, settingsItemsDict, textureWidth, widthInCellsDelta);
+            var tupleToNewFramesMap = GenerateNewFramesForSymbols(
+                    animData, 
+                    validSymbolNames, 
+                    settingsItemsDict, 
+                    textureWidth, 
+                    widthInCellsDelta
+                );
             ReplaceOriginalSymbolFramesWithTheNewlyGenerated(BGD, tupleToNewFramesMap);
             UpdateSymbolNumFramesAndTotalMaxVisibleFrames(animData, BGD, tupleToNewFramesMap);
-            var origFrameElementIndexToNewFrameElementsMap = CreateMappingOfOriginalFrameIndexesToTheNewlyCreatedFrames(BGD, tupleToNewFramesMap);
+            var origFrameElementIndexToNewFrameElementsMap = CreateMappingOfOriginalFrameIndexesToTheNewlyCreatedFrames(
+                    BGD, 
+                    tupleToNewFramesMap, 
+                    animFile.name,
+                    origAnimName
+                );
             ModifyAnimFrameElements(BGD, origFrameElementIndexToNewFrameElementsMap);
             ModifyAnimFrames(BGD, origFrameElementIndexToNewFrameElementsMap);
 
@@ -622,7 +632,9 @@ namespace ExtendedBuildingWidth
 
         private static Dictionary<int, List<KAnim.Anim.FrameElement>> CreateMappingOfOriginalFrameIndexesToTheNewlyCreatedFrames(
                 KBatchGroupData BGD,
-                Dictionary<System.Tuple<KAnimHashedString, int>, List<KAnim.Build.SymbolFrameInstance>> tupleToNewFramesMap
+                Dictionary<System.Tuple<KAnimHashedString, int>, List<KAnim.Build.SymbolFrameInstance>> tupleToNewFramesMap,
+                string animFileName,
+                string origAnimName
             )
         {
 #if DEBUG
@@ -633,17 +645,26 @@ namespace ExtendedBuildingWidth
             foreach (var origFrameElement in BGD.frameElements)
             {
                 origFrameElementIndex++;
-
 #if DEBUG
                 Debug.Log($"origFrameElement: [{origFrameElement.symbol}, {origFrameElement.frame}]");
 #endif
-
-                var tuple = System.Tuple.Create(origFrameElement.symbol, origFrameElement.frame);
-
                 List<KAnim.Build.SymbolFrameInstance> newSymbolFrames;
-                if (!tupleToNewFramesMap.TryGetValue(tuple, out newSymbolFrames))
+                var tuple = System.Tuple.Create(origFrameElement.symbol, origFrameElement.frame);
+                bool isSymbolFrameInstanceExist = tupleToNewFramesMap.TryGetValue(tuple, out newSymbolFrames);
+                if (   !isSymbolFrameInstanceExist
+                    && origAnimName == "heavywatttile_conductive_kanim"
+                    && origFrameElement.symbol.ToString() == "outlets"
+                    && origFrameElement.frame == 1
+                    )
                 {
-                    throw new KeyNotFoundException($"key tuple not found: [{origFrameElement.symbol}, {origFrameElement.frame}]");
+                    tuple = System.Tuple.Create(origFrameElement.symbol, 0);
+                    isSymbolFrameInstanceExist = tupleToNewFramesMap.TryGetValue(tuple, out newSymbolFrames);
+                }
+
+                if (!isSymbolFrameInstanceExist)
+                { 
+                    Debug.LogWarning($"ExtendedBuildingWidth - Frame Element #{origFrameElementIndex} in anim {animFileName} refers to non-existent Symbol Frame Instance: [{origFrameElement.symbol}, {origFrameElement.frame}]");
+                    continue;
                 }
 
                 var newFrameElements = new List<KAnim.Anim.FrameElement>();
@@ -740,8 +761,7 @@ namespace ExtendedBuildingWidth
 
                 for (var mmm = animFrame.firstElementIdx; mmm < animFrame.firstElementIdx + animFrame.numElements; mmm++)
                 {
-                    List<KAnim.Anim.FrameElement> newFrameElements;
-                    if (origFrameElementIndexToNewFrameElementsMap.TryGetValue(mmm, out newFrameElements))
+                    if (origFrameElementIndexToNewFrameElementsMap.TryGetValue(mmm, out var newFrameElements))
                     {
                         modifiedAnimFrame.numElements += newFrameElements.Count - 1;
                     }
