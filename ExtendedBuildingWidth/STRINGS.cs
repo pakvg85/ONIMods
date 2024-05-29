@@ -41,6 +41,9 @@
                 public static LocString DIALOG_TITLE = "Visual output settings";
                 public static LocString GRIDCOLUMN_CONFIGNAME = "Config name";
                 public static LocString GRIDCOLUMN_CONFIGNAME_TOOLTIP = "";
+                public static LocString GRIDCOLUMN_OPENFIELDSFOREDITING1 = "Edit";
+                public static LocString GRIDCOLUMN_OPENFIELDSFOREDITING2 = "";
+                public static LocString GRIDCOLUMN_OPENFIELDSFOREDITING_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_ADDREC = "+";
                 public static LocString GRIDCOLUMN_ADDREC_TOOLTIP = "";
                 public static LocString GRIDCOLUMN_DELREC = "-";
@@ -71,6 +74,7 @@
                 public static LocString GRIDCOLUMN_PREVIEW1 = "Preview";
                 public static LocString GRIDCOLUMN_PREVIEW2 = "";
                 public static LocString GRIDCOLUMN_PREVIEW_TOOLTIP = "";
+                public static LocString BUTTON_OPENFIELDSFOREDITING = "edit";
                 public static LocString BUTTON_ADDREC = "+";
                 public static LocString BUTTON_DELREC = "-";
                 public static LocString BUTTON_PREVIEW = "preview";

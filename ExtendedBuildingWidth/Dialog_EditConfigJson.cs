@@ -1,4 +1,5 @@
-﻿using PeterHan.PLib.UI;
+﻿using PeterHan.PLib.Core;
+using PeterHan.PLib.UI;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -8,25 +9,17 @@ namespace ExtendedBuildingWidth
 {
     public class Dialog_EditConfigJson
     {
-        private class EditConfigDialog_Item
-        {
-            public string ConfigName { get; set; }
-            public int MinWidth { get; set; }
-            public int MaxWidth { get; set; }
-            public float AnimStretchModifier { get; set; }
-        }
-
-        private PDialog _pDialog = null;
-        private PPanel _dialogBody = null;
-        private PPanel _dialogBodyChild = null;
-        private KScreen _componentScreen = null;
-        private readonly List<EditConfigDialog_Item> _dialogData = new List<EditConfigDialog_Item>();
+        private GameObject _dataPanelParentGo = null;
+        private GameObject _dataPanelGo = null;
+        private readonly List<ExtendableConfigSettings_Gui> _dialogMainData = new List<ExtendableConfigSettings_Gui>();
 
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
         const int SpacingInPixels = 7;
 
-        public bool ShowTechName = false;
+        public bool ShowTechName { get; set; } = false;
+        public bool ActiveRecordInitialized { get; set; } = false;
+        public string ActiveRecordId { get; set; } = default;
 
         private readonly ModSettings _modSettings;
 
@@ -41,88 +34,100 @@ namespace ExtendedBuildingWidth
             {
                 Title = DIALOG_EDIT_MAINSETTINGS.DIALOG_TITLE,
                 DialogClosed = OnDialogClosed,
-                Size = new Vector2 { x = 1000, y = 700 },
-                MaxSize = new Vector2 { x = 1000, y = 700 },
+                Size = new Vector2 { x = 1280, y = 900 },
+                MaxSize = new Vector2 { x = 1280, y = 900 },
                 SortKey = 200.0f
             }.AddButton(DialogOption_Ok, DIALOG_COMMON_STR.BUTTON_OK, null, PUITuning.Colors.ButtonPinkStyle)
             .AddButton(DialogOption_Cancel, DIALOG_COMMON_STR.BUTTON_CANCEL, null, PUITuning.Colors.ButtonBlueStyle);
 
-            GenerateData();
+            GenerateInitialData();
 
-            _pDialog = dialog;
-            _dialogBody = dialog.Body;
+            dialog.Body.DynamicSize = true;
+            dialog.Body.FlexSize = Vector2.one;
+            dialog.Body.Margin = new RectOffset(10, 10, 10, 10);
+            dialog.Body.Alignment = TextAnchor.UpperLeft;
+            //dialog.Body.BackColor = Color.white;
 
-            RebuildBodyAndShow(showFirstTime: true);
+            var gridPanel = new PGridPanel()
+            {
+                //BackColor = Color.black,
+                DynamicSize = true,
+                FlexSize = Vector2.one // does matter - so the scroll slider will be at far right
+            };
+            gridPanel.AddColumn(new GridColumnSpec(0, 100));
+            gridPanel.AddRow(new GridRowSpec(50, 0));
+            gridPanel.AddRow(new GridRowSpec(500, 0));
+            gridPanel.AddRow(new GridRowSpec(70, 0));
+            gridPanel.AddRow(new GridRowSpec(200, 0));
+            dialog.Body.AddChild(gridPanel);
+
+            // contents should lean to left border
+            var headerPanelParent = new PPanel("HeaderPanelParent")
+            {
+                Alignment = TextAnchor.UpperLeft, // does matter - contents are not stretched and should lean to left
+                //BackColor = Color.green,
+                DynamicSize = true,
+                FlexSize = Vector2.one // does matter - if not set, then contents will be centered
+            };
+            gridPanel.AddChild(headerPanelParent, new GridComponentSpec(0, 0));
+
+            // contents should lean to left border
+            // and scroll slider should lean to the right border
+            var dataPanelParent = new PPanel("DataPanelParent")
+            {
+                //Alignment = ... // doesn't matter - contents are stretched by ScrollPane
+                //BackColor = Color.magenta,
+                DynamicSize = true,
+                FlexSize = Vector2.one // does matter - so the scroll slider will be at far right
+            };
+            dataPanelParent.OnRealize += (realized) => { _dataPanelParentGo = realized; };
+            gridPanel.AddChild(dataPanelParent, new GridComponentSpec(1, 0));
+
+            // contents should be centered
+            var controlPanelParent = new PPanel("ControlPanelParent")
+            {
+                //Alignment = ... FlexSize = ... // doesn't matter - contents will be centered anyway
+            };
+            gridPanel.AddChild(controlPanelParent, new GridComponentSpec(2, 0));
+
+            var titlesPanel = GenerateTitles();
+            //titlesPanel.FlexSize = ... ; // should not be stretched - contents should lean to the left
+            //titlesPanel.BackColor = Color.gray;
+            headerPanelParent.AddChild(titlesPanel);
+            var dataPanel = GenerateDataPanel();
+            //dataPanel.BackColor = Color.yellow;
+            // dataPanel.FlexSize = Vector2.one; // should not be stretched - contents should lean to the left
+            var dataPanelWithScroll = CreateScrollForPanel(dataPanel);
+            dataPanelWithScroll.FlexSize = Vector2.one; // does matter - so the scroll slider will be at far right
+            dataPanelWithScroll.OnRealize += (realized) => { _dataPanelGo = realized; };
+            dataPanelParent.AddChild(dataPanelWithScroll);
+            var controlPanel = GenerateControlPanel();
+            //controlPanel.BackColor = Color.blue;
+            controlPanelParent.AddChild(controlPanel);
+
+            dialog.Show();
         }
 
-        internal void RebuildBodyAndShow(bool showFirstTime = false)
+        private PScrollPane CreateScrollForPanel(IUIComponent child)
         {
-            if (!showFirstTime)
+            var scrollPane = new PScrollPane()
             {
-                _componentScreen.Deactivate();
-            }
-
-            ClearContents();
-            GenerateRecordsPanel();
-            GenerateControlPanel();
-
-            _dialogBody.AddChild(_dialogBodyChild);
-
-            _componentScreen = null;
-            var isBuilt = _pDialog.Build().TryGetComponent<KScreen>(out _componentScreen);
-            if (isBuilt)
-            {
-                _componentScreen.Activate();
-            }
+                Child = child,
+                TrackSize = 20,
+                ScrollHorizontal = false,
+                ScrollVertical = true,
+                AlwaysShowHorizontal = false,
+                AlwaysShowVertical = false
+            };
+            return scrollPane;
         }
 
         public List<string> GetConfigNames()
         {
-            return _dialogData.Select(d => d.ConfigName).ToList();
+            return _dialogMainData.Select(d => d.ConfigName).ToList();
         }
 
-        public void ApplyChanges(ICollection<System.Tuple<string, bool>> modifiedRecords)
-        {
-            foreach (var entry in modifiedRecords)
-            {
-                var configName = entry.Item1;
-                bool doAddNewRecord = entry.Item2;
-                bool hasRecordsWithThisConfig = TryGetRecord(configName, out var existingRecord);
-
-                if (!doAddNewRecord)
-                {
-                    if (hasRecordsWithThisConfig)
-                    {
-                        _dialogData.Remove(existingRecord);
-                    }
-                }
-                else
-                {
-                    if (!hasRecordsWithThisConfig)
-                    {
-                        var newRec = new EditConfigDialog_Item()
-                        {
-                            ConfigName = configName,
-                            MinWidth = SettingsManager.DefaultMinWidth,
-                            MaxWidth = SettingsManager.DefaultMaxWidth,
-                            AnimStretchModifier = SettingsManager.DefaultAnimStretchModifier
-                        };
-                        _dialogData.Add(newRec);
-                    }
-                }
-            }
-        }
-
-        private void ClearContents()
-        {
-            if (_dialogBodyChild != null)
-            {
-                _dialogBody.RemoveChild(_dialogBodyChild);
-            }
-            _dialogBodyChild = new PPanel("DialogBodyChild");
-        }
-
-        private void GenerateRecordsPanel()
+        private PGridPanel GenerateTitles()
         {
             var tableTitlesPanel = new PGridPanel("EditConfigJsonTitlesPanel") { Margin = new RectOffset(10, 40, 10, 0) };
             tableTitlesPanel.AddColumn(new GridColumnSpec(440));
@@ -139,22 +144,25 @@ namespace ExtendedBuildingWidth
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF1 }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_MAINSETTINGS.GRIDCOLUMN_STRETCHKOEF2 }, new GridComponentSpec(iRow + 1, iCol));
 
-            _dialogBodyChild.AddChild(tableTitlesPanel);
+            return tableTitlesPanel;
+        }
 
+        private PGridPanel GenerateDataPanel()
+        {
             var gridPanel = new PGridPanel("EditConfigJsonGridPanel") { Margin = new RectOffset(10, 40, 10, 10) };
             gridPanel.AddColumn(new GridColumnSpec(440));
             gridPanel.AddColumn(new GridColumnSpec(80));
             gridPanel.AddColumn(new GridColumnSpec(100));
-            foreach (var entry in _dialogData)
+            foreach (var entry in _dialogMainData)
             {
                 gridPanel.AddRow(new GridRowSpec());
             }
 
-            iRow = -1;
-            foreach (var entry in _dialogData)
+            int iRow = -1;
+            foreach (var entry in _dialogMainData)
             {
                 ++iRow;
-                iCol = -1;
+                int iCol = -1;
 
                 string configCaption = string.Empty;
                 if (SettingsManager.AllBuildingsMap.TryGetValue(entry.ConfigName, out var buildingDescription))
@@ -195,30 +203,10 @@ namespace ExtendedBuildingWidth
                 gridPanel.AddChild(strMdf, new GridComponentSpec(iRow, ++iCol));
             }
 
-            var scrollBody = new PPanel("ScrollContent")
-            {
-                Spacing = 10,
-                Direction = PanelDirection.Vertical,
-                Alignment = TextAnchor.UpperCenter,
-                FlexSize = Vector2.right
-            };
-            scrollBody.AddChild(gridPanel);
-
-            var scrollPane = new PScrollPane()
-            {
-                ScrollHorizontal = false,
-                ScrollVertical = true,
-                Child = scrollBody,
-                FlexSize = Vector2.right,
-                TrackSize = 20,
-                AlwaysShowHorizontal = false,
-                AlwaysShowVertical = true
-            };
-
-            _dialogBodyChild.AddChild(scrollPane);
+            return gridPanel;
         }
 
-        private void GenerateControlPanel()
+        private PPanel GenerateControlPanel()
         {
             var controlPanel = new PPanel("ControlPanel") {
                 Direction = PanelDirection.Horizontal,
@@ -240,35 +228,58 @@ namespace ExtendedBuildingWidth
             };
             controlPanel.AddChild(btnAdd);
 
-            _dialogBodyChild.AddChild(controlPanel);
+            return controlPanel;
         }
 
-        private void GenerateData()
+        private void GenerateInitialData()
         {
-            _dialogData.Clear();
+            _dialogMainData.Clear();
             var confList = _modSettings.GetExtendableConfigSettingsList();
             foreach (var entry in confList)
             {
-                var rec = new EditConfigDialog_Item()
-                {
-                    ConfigName = entry.ConfigName,
-                    MinWidth = entry.MinWidth,
-                    MaxWidth = entry.MaxWidth,
-                    AnimStretchModifier = entry.AnimStretchModifier
-                };
-                _dialogData.Add(rec);
+                var rec = DataMapper.SourceToGui(entry);
+                _dialogMainData.Add(rec);
             }
         }
 
-        private bool TryGetRecord(string name, out EditConfigDialog_Item record)
+        internal void RebuildDataPanel()
         {
-            if (!_dialogData.Any(x => x.ConfigName == name))
+            if (_dataPanelGo != null)
+            {
+                _dataPanelGo.SetParent(null);
+                _dataPanelGo.SetActive(false);
+                _dataPanelGo = null;
+            }
+
+            var dataPanel = GenerateDataPanel();
+            //dataPanel.BackColor = Color.yellow;
+            var dataPanelWithScroll = CreateScrollForPanel(dataPanel);
+            dataPanelWithScroll.FlexSize = Vector2.one;
+            dataPanelWithScroll.OnRealize += (realized) => { _dataPanelGo = realized; };
+            dataPanelWithScroll.AddTo(_dataPanelParentGo);
+        }
+
+        public bool TryGetRecord(string name, out ExtendableConfigSettings_Gui record)
+        {
+            if (!_dialogMainData.Any(x => x.ConfigName == name))
             {
                 record = null;
                 return false;
             }
-            record = _dialogData.Where(x => x.ConfigName == name).First();
+            record = _dialogMainData.Where(x => x.ConfigName == name).First();
             return true;
+        }
+
+        public static ExtendableConfigSettings_Gui NewDefaultRecord(string configName)
+        {
+            var newRec = new ExtendableConfigSettings_Gui()
+            {
+                ConfigName = configName,
+                MinWidth = SettingsManager.DefaultMinWidth,
+                MaxWidth = SettingsManager.DefaultMaxWidth,
+                AnimStretchModifier = SettingsManager.DefaultAnimStretchModifier
+            };
+            return newRec;
         }
 
         private void OnDialogClosed(string option)
@@ -279,15 +290,9 @@ namespace ExtendedBuildingWidth
             }
 
             var newRez = new List<ExtendableConfigSettings>();
-            foreach (var entry in _dialogData)
+            foreach (var entry in _dialogMainData)
             {
-                var rec = new ExtendableConfigSettings()
-                {
-                    ConfigName = entry.ConfigName,
-                    MinWidth = entry.MinWidth,
-                    MaxWidth = entry.MaxWidth,
-                    AnimStretchModifier = entry.AnimStretchModifier
-                };
+                var rec = DataMapper.GuiToSource(entry);
                 newRez.Add(rec);
             }
 
@@ -296,11 +301,9 @@ namespace ExtendedBuildingWidth
 
         private void OnTextChanged_MaxWidth(GameObject source, string text)
         {
-            if (!TryGetRecord(source.name, out var record))
-            {
-                return;
-            }
-            if (!int.TryParse(text, out var parsed))
+            if (   !TryGetRecord(source.name, out var record)
+                || !int.TryParse(text, out var parsed)
+                )
             {
                 return;
             }
@@ -309,11 +312,9 @@ namespace ExtendedBuildingWidth
 
         private void OnTextChanged_AnimStretchModifier(GameObject source, string text)
         {
-            if (!TryGetRecord(source.name, out var record))
-            {
-                return;
-            }
-            if (!float.TryParse(text, out var parsed))
+            if (!TryGetRecord(source.name, out var record)
+                || !int.TryParse(text, out var parsed)
+                )
             {
                 return;
             }
@@ -322,7 +323,7 @@ namespace ExtendedBuildingWidth
 
         private void OnClick_AddRemoveRecords(GameObject source)
         {
-            var dARR = new Dialog_AddRemoveRecords(this);
+            var dARR = new Dialog_AddRemoveRecords(this, _dialogMainData);
             dARR.CreateAndShow(null);
         }
 
@@ -331,7 +332,7 @@ namespace ExtendedBuildingWidth
             int newState = (state + 1) % 2;
             PCheckBox.SetCheckState(source, newState);
             ShowTechName = (newState == PCheckBox.STATE_CHECKED);
-            RebuildBodyAndShow();
+            RebuildDataPanel();
         }
     }
 }

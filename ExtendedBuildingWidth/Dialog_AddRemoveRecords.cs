@@ -25,6 +25,7 @@ namespace ExtendedBuildingWidth
         private readonly List<AddRemoveDialog_Item> _dialogData_Filtered_OnPage = new List<AddRemoveDialog_Item>();
         private readonly Dictionary<string, AddRemoveDialog_Item> _modifiedItems = new Dictionary<string, AddRemoveDialog_Item>();
         private readonly Dialog_EditConfigJson _dialog_Parent;
+        private readonly List<ExtendableConfigSettings_Gui> _parentDialogData;
 
         const string DialogOption_Ok = "ok";
         const string DialogOption_Cancel = "cancel";
@@ -43,9 +44,10 @@ namespace ExtendedBuildingWidth
         public string FilterText { get; set; } = string.Empty;
         public bool ShowTechName { get; set; } = false;
 
-        public Dialog_AddRemoveRecords(Dialog_EditConfigJson dialog_Parent)
+        public Dialog_AddRemoveRecords(Dialog_EditConfigJson dialog_Parent, List<ExtendableConfigSettings_Gui> parentDialogData)
         {
             _dialog_Parent = dialog_Parent;
+            _parentDialogData = parentDialogData;
         }
 
         public void CreateAndShow(object obj)
@@ -364,6 +366,32 @@ namespace ExtendedBuildingWidth
             return true;
         }
 
+        public void ApplyChanges(ICollection<System.Tuple<string, bool>> modifiedRecords)
+        {
+            foreach (var entry in modifiedRecords)
+            {
+                var configName = entry.Item1;
+                bool doAddNewRecord = entry.Item2;
+                bool hasRecordsWithThisConfig = _dialog_Parent.TryGetRecord(configName, out var existingRecord);
+
+                if (!doAddNewRecord)
+                {
+                    if (hasRecordsWithThisConfig)
+                    {
+                        _parentDialogData.Remove(existingRecord);
+                    }
+                }
+                else
+                {
+                    if (!hasRecordsWithThisConfig)
+                    {
+                        var newRec = Dialog_EditConfigJson.NewDefaultRecord(configName);
+                        _parentDialogData.Add(newRec);
+                    }
+                }
+            }
+        }
+
         private void OnDialogClosed(string option)
         {
             if (option != DialogOption_Ok)
@@ -376,8 +404,8 @@ namespace ExtendedBuildingWidth
             {
                 addRemoveRecords.Add(new System.Tuple<string, bool>(entry.ConfigName, (entry.IsChecked == PCheckBox.STATE_CHECKED)));
             }
-            _dialog_Parent.ApplyChanges(addRemoveRecords);
-            _dialog_Parent.RebuildBodyAndShow();
+            ApplyChanges(addRemoveRecords);
+            _dialog_Parent.RebuildDataPanel();
         }
 
         private void OnChecked_RecordItem(GameObject source, int state)

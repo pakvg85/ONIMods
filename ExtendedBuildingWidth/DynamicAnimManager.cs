@@ -362,89 +362,6 @@ namespace ExtendedBuildingWidth
             return result;
         }
 
-        private static AnimSplittingSettings_Internal MapToInternal(AnimSplittingSettings entry, string SymbolName, string FrameIndex)
-        {
-            if (   string.IsNullOrEmpty(SymbolName)
-                || string.IsNullOrEmpty(FrameIndex)
-                )
-            {
-                throw new ArgumentNullException("SymbolName / FrameIndex");
-            }
-            //var symbolNameHash = !string.IsNullOrEmpty(SymbolName) ? new KAnimHashedString(SymbolName) : default;
-            //var frameIndex = !string.IsNullOrEmpty(FrameIndex) ? int.Parse(FrameIndex) : -1;
-            var symbolNameHash = new KAnimHashedString(SymbolName);
-            var frameIndex = int.Parse(FrameIndex);
-
-            var newEntry = new AnimSplittingSettings_Internal
-            {
-                ConfigName = entry.ConfigName,
-                SymbolName = symbolNameHash,
-                FrameIndex = frameIndex,
-                MiddlePart_X = entry.MiddlePart_X,
-                MiddlePart_Width = entry.MiddlePart_Width,
-                FillingStyle = entry.FillingMethod,
-                DoFlipEverySecondIteration = entry.DoFlipEverySecondIteration
-            };
-            return newEntry;
-        }
-
-        private static List<AnimSplittingSettings_Internal> MapToInternal(List<AnimSplittingSettings> list)
-        {
-            var result = new List<AnimSplittingSettings_Internal>();
-            foreach (var entry in list)
-            {
-                if (!entry.IsActive)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    if (   !string.IsNullOrEmpty(entry.SymbolName)
-                        && !string.IsNullOrEmpty(entry.FrameIndex)
-                        )
-                    {
-                        var newEntry = MapToInternal(entry, entry.SymbolName, entry.FrameIndex);
-                        result.Add(newEntry);
-                    }
-                    else if (  !string.IsNullOrEmpty(entry.SymbolName)
-                            && string.IsNullOrEmpty(entry.FrameIndex)
-                            )
-                    { 
-                        var config = DynamicBuildingsManager.ConfigMap[entry.ConfigName];
-                        var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
-                        var symbol = originalDef.AnimFiles.First().GetData().build.GetSymbol(entry.SymbolName);
-                        for (var i = 0; i < symbol.numFrames; i++)
-                        {
-                            var newEntry = MapToInternal(entry, symbol.hash.ToString(), i.ToString());
-                            result.Add(newEntry);
-                        }
-                    }
-                    else if (string.IsNullOrEmpty(entry.SymbolName))
-                    {
-                        var config = DynamicBuildingsManager.ConfigMap[entry.ConfigName];
-                        var originalDef = DynamicBuildingsManager.ConfigToBuildingDefMap[config];
-                        var symbols = originalDef.AnimFiles.First().GetData().build.symbols;
-                        foreach (var symbol in symbols)
-                        {
-                            for (var i = 0; i < symbol.numFrames; i++)
-                            {
-                                var newEntry = MapToInternal(entry, symbol.hash.ToString(), i.ToString());
-                                result.Add(newEntry);
-                            }
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning($"ExtendedBuildingWidth - MapToInternal List at {entry.ConfigName} - [{entry.SymbolName}, {entry.FrameIndex}]");
-                    Debug.LogWarning(e.ToString());
-                    throw e;
-                }
-            }
-            return result;
-        }
-
         public static void SplitAnim(
                 KAnimFile animFile,
                 int widthInCellsDelta,
@@ -460,7 +377,7 @@ namespace ExtendedBuildingWidth
                 throw new ArgumentNullException("animFile?.GetData()?.build?.batchTag");
             }
 
-            var settingsInternal = MapToInternal(settingsItems);
+            var settingsInternal = DataMapper.SourceToInternal(settingsItems);
 #if DEBUG
             Debug.Log($"settingsItems:");
             foreach (var value in settingsItems)

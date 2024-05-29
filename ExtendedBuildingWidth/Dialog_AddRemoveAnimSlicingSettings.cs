@@ -1,4 +1,5 @@
 ﻿using PeterHan.PLib.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -22,6 +23,7 @@ namespace ExtendedBuildingWidth
         private readonly List<AddRemoveDialog_Item> _dialogData = new List<AddRemoveDialog_Item>();
         private readonly Dictionary<string, AddRemoveDialog_Item> _modifiedItems = new Dictionary<string, AddRemoveDialog_Item>();
         private readonly Dialog_EditAnimSlicingSettings _dialog_Parent;
+        private readonly List<AnimSplittingSettings_Gui> _parentDialogData;
         private readonly ModSettings _modSettings;
 
         const string DialogOption_Ok = "ok";
@@ -32,9 +34,10 @@ namespace ExtendedBuildingWidth
         const int BottomOffset = 7;
         const int SpacingInPixels = 7;
 
-        public Dialog_AddRemoveAnimSlicingSettings(Dialog_EditAnimSlicingSettings dialog_Parent, ModSettings modSettings)
+        public Dialog_AddRemoveAnimSlicingSettings(Dialog_EditAnimSlicingSettings dialog_Parent, List<AnimSplittingSettings_Gui> parentDialogData, ModSettings modSettings)
         {
             _dialog_Parent = dialog_Parent;
+            _parentDialogData = parentDialogData;
             _modSettings = modSettings;
         }
 
@@ -214,6 +217,32 @@ namespace ExtendedBuildingWidth
             _dialogBodyChild.AddChild(scrollPane);
         }
 
+        private void ApplyChanges(ICollection<System.Tuple<string, bool>> modifiedRecords)
+        {
+            foreach (var entry in modifiedRecords)
+            {
+                var configName = entry.Item1;
+                bool doAddNewRecord = entry.Item2;
+                var hasRecordsWithThisConfig = _parentDialogData.Any(x => x.ConfigName == configName);
+
+                if (!doAddNewRecord)
+                {
+                    if (hasRecordsWithThisConfig)
+                    {
+                        _parentDialogData.RemoveAll(x => x.ConfigName == configName);
+                    }
+                }
+                else
+                {
+                    if (!hasRecordsWithThisConfig)
+                    {
+                        var newRec = Dialog_EditAnimSlicingSettings.NewDefaultRecord(configName);
+                        _parentDialogData.Add(newRec);
+                    }
+                }
+            }
+        }
+
         private void OnDialogClosed(string option)
         {
             if (option != DialogOption_Ok)
@@ -226,7 +255,7 @@ namespace ExtendedBuildingWidth
             {
                 addRemoveRecords.Add(new System.Tuple<string, bool>(entry.ConfigName, (entry.IsChecked == PCheckBox.STATE_CHECKED)));
             }
-            _dialog_Parent.ApplyChanges(addRemoveRecords);
+            ApplyChanges(addRemoveRecords);
             _dialog_Parent.RebuildDataPanel();
         }
 

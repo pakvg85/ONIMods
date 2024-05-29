@@ -76,10 +76,10 @@ namespace ExtendedBuildingWidth
         private string _configNameToAnimNameMap;
 
         [Option("STRINGS.UI.MODSETTINGS.BUTTON_STARTDIALOG_CONFIGMAIN")]
-        public System.Action<object> Button_EditConfigJson => _dialog_EditConfigJson.CreateAndShow;
+        public System.Action<object> Button_EditConfigJson => new Dialog_EditConfigJson(this).CreateAndShow;
 
         [Option("STRINGS.UI.MODSETTINGS.BUTTON_STARTDIALOG_ANIMSLICING")]
-        public System.Action<object> Button_EditAnimSlicingSettings => _dialog_EditAnimSlicingSettings.CreateAndShow;
+        public System.Action<object> Button_EditAnimSlicingSettings => new Dialog_EditAnimSlicingSettings(this).CreateAndShow;
 
         [Option("STRINGS.UI.MODSETTINGS.BUTTON_CREATEALLBUILDINGNAMES", "STRINGS.UI.MODSETTINGS.BUTTON_CREATEALLBUILDINGNAMES_TOOLTIP")]
         public System.Action<object> Button_CreateFileWithAllAvailableBuildings => SettingsManager.CreateFileWithAllAvailableBuildings;
@@ -109,10 +109,6 @@ namespace ExtendedBuildingWidth
         /// </summary>
         public Dictionary<string, string> GetConfigNameToAnimNameMap() => JsonConvert.DeserializeObject<Dictionary<string, string>>(ConfigNameToAnimNameMap);
 
-        private readonly SettingsManager _settingsManager;
-        private readonly Dialog_EditConfigJson _dialog_EditConfigJson;
-        private readonly Dialog_EditAnimSlicingSettings _dialog_EditAnimSlicingSettings;
-
         /// <summary>
         /// The constructor is called in 2 cases:
         /// 1) if 'config.json' is read via 'POptions.ReadSettings' (in this case the constructor results are overwritten)
@@ -120,9 +116,6 @@ namespace ExtendedBuildingWidth
         /// </summary>
         public ModSettings()
         {
-            _settingsManager = new SettingsManager(this);
-            _dialog_EditConfigJson = new Dialog_EditConfigJson(this);
-            _dialog_EditAnimSlicingSettings = new Dialog_EditAnimSlicingSettings(this);
             SetExtendableConfigSettings(SettingsManager.GenerateDefaultValues_For_ExtendableConfigSettings());
             SetAnimSplittingSettings(SettingsManager.GenerateDefaultValues_For_AnimSplittingSettings());
             SetConfigNameToAnimNameMap(SettingsManager.GenerateDefaultValues_For_ConfigNameToAnimNamesMap());
