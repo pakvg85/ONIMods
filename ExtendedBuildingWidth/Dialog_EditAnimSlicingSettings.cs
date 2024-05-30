@@ -216,6 +216,9 @@ namespace ExtendedBuildingWidth
         {
             ClearPreviewPanel();
 
+            ActiveRecordInitialized = true;
+            ActiveRecordId = GetRecordId(settings_Item);
+
             var symbolName = SymbolHashOrFirstSymbolFromConfig(settings_Item.SymbolName, settings_Item.ConfigName);
             var frameIndex = FrameIndexOrFirstFrameFromConfig(settings_Item.FrameIndex, settings_Item.ConfigName);
             var settings_Internal = DataMapper.GuiToInternal(settings_Item, symbolName, frameIndex);
@@ -260,10 +263,10 @@ namespace ExtendedBuildingWidth
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_SYMBOL_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FRAME_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2 }, new GridComponentSpec(iRow + 1, iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2 }, new GridComponentSpec(iRow, ++iCol));
-            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2 }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE1, ToolTip = StringUtils.CombineTooltip(DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1, DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2) }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE2, ToolTip = StringUtils.CombineTooltip(DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP1, DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_ISACTIVE_TOOLTIP2) }, new GridComponentSpec(iRow + 1, iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE1, ToolTip = StringUtils.CombineTooltip(DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1, DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2) }, new GridComponentSpec(iRow, ++iCol));
+            tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE2, ToolTip = StringUtils.CombineTooltip(DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP1, DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_FILLINGSTYLE_TOOLTIP2) }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS2, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEXPOS_TOOLTIP }, new GridComponentSpec(iRow + 1, iCol));
             tableTitlesPanel.AddChild(new PLabel() { Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH1, ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.GRIDCOLUMN_MIDDLEWIDTH_TOOLTIP }, new GridComponentSpec(iRow, ++iCol));
@@ -1049,7 +1052,7 @@ namespace ExtendedBuildingWidth
             {
                 InitialState = ShowTechName ? 1 : 0,
                 Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
-                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
+                ToolTip = StringUtils.CombineTooltip(DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1, DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2),
                 OnChecked = OnChecked_ShowTechName
             };
             controlPanel.AddChild(cbShowTechName);
@@ -1058,7 +1061,7 @@ namespace ExtendedBuildingWidth
             {
                 InitialState = ShowDropdownsForSymbolsAndFrames ? 1 : 0,
                 Text = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS,
-                ToolTip = DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP1 + Environment.NewLine + DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP2,
+                ToolTip = StringUtils.CombineTooltip(DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP1, DIALOG_EDIT_ANIMSLICINGSETTINGS.CHECKBOX_SYMBOLFRAMEDROPDOWNS_TOOLTIP2),
                 OnChecked = OnChecked_ShowDropdownsForSymbolsAndFrames
             };
             controlPanel.AddChild(cbShowDropdowns);
@@ -1434,8 +1437,6 @@ namespace ExtendedBuildingWidth
             {
                 return;
             }
-            ActiveRecordInitialized = true;
-            ActiveRecordId = GetRecordId(record);
             RebuildPreviewPanel(record);
         }
 

@@ -166,7 +166,7 @@ namespace ExtendedBuildingWidth
                 Margin = new RectOffset(LeftOffset, RightOffset, TopOffset, BottomOffset),
                 InitialState = ShowTechName ? 1 : 0,
                 Text = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES,
-                ToolTip = DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1 + Environment.NewLine + DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2,
+                ToolTip = StringUtils.CombineTooltip(DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP1, DIALOG_COMMON_STR.CHECKBOX_SHOWTECHNAMES_TOOLTIP2),
                 OnChecked = OnChecked_ShowTechName
             };
             addRemoveDialogSettingsPanel.AddChild(cbShowTechName);

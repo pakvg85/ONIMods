@@ -390,7 +390,10 @@ namespace ExtendedBuildingWidth
                 Debug.Log($"{value.ConfigName} - [{value.SymbolName}, {value.FrameIndex}]");
             }
 #endif
-            var settingsItemsDict = settingsInternal.ToDictionary(x => System.Tuple.Create(x.SymbolName, x.FrameIndex), y => y);
+            //var settingsItemsDict = settingsInternal.ToDictionary(x => System.Tuple.Create(x.SymbolName, x.FrameIndex), y => y);
+            var settingsItemsDict = settingsInternal
+                .GroupBy(r => System.Tuple.Create(r.SymbolName, r.FrameIndex))
+                .ToDictionary(t => t.Key, y => y.First());
 
             var validSymbolNames = settingsInternal.Select(x => x.SymbolName).Distinct().ToHashSet();
 

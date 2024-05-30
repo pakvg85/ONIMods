@@ -104,6 +104,7 @@
     <Compile Include="SettingsManager.cs" />
     <Compile Include="StringListOption.cs" />
     <Compile Include="STRINGS.cs" />
+    <Compile Include="StringUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
