@@ -3,6 +3,8 @@
     public enum FillingStyle
     {
         Stretch,
-        Repeat
+        Repeat,
+        ShiftLeft,
+        ShiftRight
     }
 }

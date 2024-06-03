@@ -216,6 +216,7 @@ namespace ExtendedBuildingWidth
         {
             // Utility Offset fields should be overwritten because they are generated independently in 'IBuildingConfig.CreateBuildingDef' implementations.
             AdjustUtilityPortsOffsets(dynamicDef);
+            AdjustRadPortsOffsets(dynamicDef);
 
             // 'Strings' entities are copied from the original
             AdjustStrings(dynamicDef, originalDef);
@@ -265,15 +266,27 @@ namespace ExtendedBuildingWidth
                 return;
             }
 
-            var newLogicPorts = new List<LogicPorts.Port>();
-            foreach (var port in buildingDef.LogicInputPorts)
+            if (buildingDef.LogicInputPorts.Count == 2)
             {
-                var newPort = port;
-                AdjustPortOffset(ref newPort.cellOffset, buildingDef.WidthInCells);
-                newLogicPorts.Add(newPort);
+                var logicPort1 = buildingDef.LogicInputPorts[0];
+                var logicPort2 = buildingDef.LogicInputPorts[1];
+                AdjustPortOffset(ref logicPort1.cellOffset, ref logicPort2.cellOffset, buildingDef.WidthInCells);
+                buildingDef.LogicInputPorts.Clear();
+                buildingDef.LogicInputPorts.Add(logicPort1);
+                buildingDef.LogicInputPorts.Add(logicPort2);
             }
-            buildingDef.LogicInputPorts.Clear();
-            buildingDef.LogicInputPorts.AddRange(newLogicPorts.ToArray());
+            else
+            {
+                var adjustedLogicPorts = new List<LogicPorts.Port>();
+                for (var i = 0; i < buildingDef.LogicInputPorts.Count; i++)
+                {
+                    var logicPort = buildingDef.LogicInputPorts[i];
+                    AdjustPortOffset(ref logicPort.cellOffset, buildingDef.WidthInCells);
+                    adjustedLogicPorts.Add(logicPort);
+                }
+                buildingDef.LogicInputPorts.Clear();
+                buildingDef.LogicInputPorts.AddRange(adjustedLogicPorts);
+            }
 
             ReInitializeLogicPorts(buildingDef.BuildingComplete, buildingDef);
             ReInitializeLogicPorts(buildingDef.BuildingPreview, buildingDef);
@@ -281,18 +294,15 @@ namespace ExtendedBuildingWidth
 
             if (buildingDef.BuildingComplete.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingComplete))
             {
-                AdjustPortOffset(ref logicNetworkLinkBuildingComplete.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref logicNetworkLinkBuildingComplete.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingComplete.link1, ref logicNetworkLinkBuildingComplete.link2, buildingDef.WidthInCells);
             }
             if (buildingDef.BuildingUnderConstruction.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingUnderConstruction))
             {
-                AdjustPortOffset(ref logicNetworkLinkBuildingUnderConstruction.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref logicNetworkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingUnderConstruction.link1, ref logicNetworkLinkBuildingUnderConstruction.link2, buildingDef.WidthInCells);
             }
             if (buildingDef.BuildingPreview.TryGetComponent<LogicUtilityNetworkLink>(out var logicNetworkLinkBuildingPreview))
             {
-                AdjustPortOffset(ref logicNetworkLinkBuildingPreview.link1, buildingDef.WidthInCells);
-                AdjustPortOffset(ref logicNetworkLinkBuildingPreview.link2, buildingDef.WidthInCells);
+                AdjustPortOffset(ref logicNetworkLinkBuildingPreview.link1, ref logicNetworkLinkBuildingPreview.link2, buildingDef.WidthInCells);
             }
         }
 
@@ -318,27 +328,57 @@ namespace ExtendedBuildingWidth
 
             if (buildingDef.BuildingComplete.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingComplete))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link1, width);
-                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link2, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingComplete.link1, ref wireNetworkLinkBuildingComplete.link2, width);
             }
             if (buildingDef.BuildingUnderConstruction.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingUnderConstruction))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link1, width);
-                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link2, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingUnderConstruction.link1, ref wireNetworkLinkBuildingUnderConstruction.link2, width);
             }
             if (buildingDef.BuildingPreview.TryGetComponent<WireUtilityNetworkLink>(out var wireNetworkLinkBuildingPreview))
             {
-                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, width);
-                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link2, width);
+                AdjustPortOffset(ref wireNetworkLinkBuildingPreview.link1, ref wireNetworkLinkBuildingPreview.link2, width);
             }
         }
 
         /// <summary>
-        /// Accessing struct CellOffset without 'ref' modifier will result in passing the parameter by value and not changing the original.
+        /// If an utility or logic port default offset value (X) equals -1, then we suggest that this port have to be placed to the left side.
+        /// If that value equals +1 - then this port have to be placed to the right side.
+        /// If it equals 0 - then it should not be adjusted and kept as it is.
         /// </summary>
         public static void AdjustPortOffset(ref CellOffset portCellOffset, int width)
         {
-            portCellOffset.x = AdjustOffsetValueByWidth(portCellOffset.x, width);
+            if (portCellOffset.x == 0)
+            {
+                return;
+            }
+
+            if (portCellOffset.x < 0)
+            {
+                portCellOffset.x = -(width - 1) / 2;
+            }
+            else if (portCellOffset.x > 0)
+            {
+                portCellOffset.x = (width) / 2;
+            }
+        }
+
+        public static void AdjustPortOffset(ref CellOffset port1_CellOffset, ref CellOffset port2_CellOffset, int width)
+        {
+            if (port1_CellOffset.x == port2_CellOffset.x)
+            {
+                return;
+            }
+
+            if (port1_CellOffset.x < port2_CellOffset.x)
+            {
+                port1_CellOffset.x = -(width - 1) / 2;
+                port2_CellOffset.x = (width) / 2;
+            }
+            else if (port1_CellOffset.x > port2_CellOffset.x)
+            {
+                port2_CellOffset.x = -(width - 1) / 2;
+                port1_CellOffset.x = (width) / 2;
+            }
         }
 
         /// <summary>
@@ -348,16 +388,16 @@ namespace ExtendedBuildingWidth
         /// </summary>
         private static void AdjustUtilityPortsOffsets(BuildingDef buildingDef)
         {
-            AdjustPortOffset(ref buildingDef.UtilityInputOffset, buildingDef.WidthInCells);
-            AdjustPortOffset(ref buildingDef.UtilityOutputOffset, buildingDef.WidthInCells);
+            AdjustPortOffset(ref buildingDef.UtilityInputOffset, ref buildingDef.UtilityOutputOffset, buildingDef.WidthInCells);
         }
 
-        /// <summary>
-        /// If an utility or logic port default offset value (X) equals -1, then we suggest that this port have to be placed to the left side.
-        /// If that value equals +1 - then this port have to be placed to the right side.
-        /// If it equals 0 - then it should not be adjusted and kept as it is.
-        /// </summary>
-        public static int AdjustOffsetValueByWidth(int defaultOffsetValue, int width) => (defaultOffsetValue < 0) ? -(width - 1) / 2 : (defaultOffsetValue > 0) ? (width) / 2 : 0;
+        private static void AdjustRadPortsOffsets(BuildingDef buildingDef)
+        {
+            if (buildingDef.UseHighEnergyParticleInputPort && buildingDef.UseHighEnergyParticleOutputPort)
+            {
+                AdjustPortOffset(ref buildingDef.HighEnergyParticleInputOffset, ref buildingDef.HighEnergyParticleOutputOffset, buildingDef.WidthInCells);
+            }
+        }
 
         private static void AdjustStrings(BuildingDef dynamicDef, BuildingDef originalDef)
         {

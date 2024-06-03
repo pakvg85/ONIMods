@@ -432,7 +432,9 @@ namespace ExtendedBuildingWidth
                     BGD, 
                     tupleToNewFramesMap, 
                     animFile.name,
-                    origAnimName
+                    origAnimName,
+                    settingsItemsDict,
+                    widthInCellsDelta
                 );
             ModifyAnimFrameElements(BGD, origFrameElementIndexToNewFrameElementsMap);
             ModifyAnimFrames(BGD, origFrameElementIndexToNewFrameElementsMap);
@@ -502,7 +504,10 @@ namespace ExtendedBuildingWidth
 
                     var key = System.Tuple.Create(symbol.hash, origFrameIndex);
 
-                    if (!settingsItemsDict.TryGetValue(key, out var settings_Item))
+                    if (   !settingsItemsDict.TryGetValue(key, out var settings_Item)
+                        ||     settings_Item.FillingStyle != FillingStyle.Stretch
+                            && settings_Item.FillingStyle != FillingStyle.Repeat
+                        )
                     {
                         tupleToNewFramesMap.Add(key, new List<KAnim.Build.SymbolFrameInstance>() { origFrameWithShiftedIndex });
                         continue;
@@ -637,7 +642,9 @@ namespace ExtendedBuildingWidth
                 KBatchGroupData BGD,
                 Dictionary<System.Tuple<KAnimHashedString, int>, List<KAnim.Build.SymbolFrameInstance>> tupleToNewFramesMap,
                 string animFileName,
-                string origAnimName
+                string origAnimName,
+                Dictionary<System.Tuple<KAnimHashedString, int>, AnimSplittingSettings_Internal> settingsItemsDict,
+                int widthInCellsDelta
             )
         {
 #if DEBUG
@@ -670,12 +677,26 @@ namespace ExtendedBuildingWidth
                     continue;
                 }
 
+                AnimSplittingSettings_Internal settingsItem = null;
+                settingsItemsDict.TryGetValue(tuple, out settingsItem);
+
                 var newFrameElements = new List<KAnim.Anim.FrameElement>();
                 foreach (var newSymbolFrame in newSymbolFrames)
                 {
                     var newFrameElement = origFrameElement;
                     newFrameElement.frame = newSymbolFrame.sourceFrameNum;
 
+                    if (settingsItem != null)
+                    {
+                        if (settingsItem.FillingStyle == FillingStyle.ShiftLeft)
+                        {
+                            newFrameElement.transform.m02 -= GameCellWidth * widthInCellsDelta;
+                        }
+                        else if (settingsItem.FillingStyle == FillingStyle.ShiftRight)
+                        {
+                            newFrameElement.transform.m02 += GameCellWidth * widthInCellsDelta;
+                        }
+                    }
 #if DEBUG
                     Debug.Log($"newFrameElement: [{newFrameElement.symbol}, {newFrameElement.frame}]");
 #endif

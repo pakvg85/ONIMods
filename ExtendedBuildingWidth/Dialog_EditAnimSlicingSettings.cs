@@ -27,6 +27,8 @@ namespace ExtendedBuildingWidth
         public const string JsonValueEmpty = "";
         const string FillingStyleOption_Stretch = "Stretch";
         const string FillingStyleOption_Repeat = "Repeat";
+        const string FillingStyleOption_ShiftLeft = "ShiftLeft";
+        const string FillingStyleOption_ShiftRight = "ShiftRight";
         const int MaxBuildingWidthToShow = 8;
         const int DefaultMiddlePartX = 50;
         const int DefaultMiddlePartWidth = 15;
@@ -52,7 +54,9 @@ namespace ExtendedBuildingWidth
         private List<StringListOption> _fillingStyle_Options = new List<StringListOption>()
         {
             new StringListOption(FillingStyleOption_Stretch),
-            new StringListOption(FillingStyleOption_Repeat)
+            new StringListOption(FillingStyleOption_Repeat),
+            new StringListOption(FillingStyleOption_ShiftLeft),
+            new StringListOption(FillingStyleOption_ShiftRight)
         };
         private Dictionary<string, List<StringListOption>> _configToSymbolDropdownMap;
         private Dictionary<string, Dictionary<string, List<StringListOption>>> _configToSymbolToFrameOptionsMap;
@@ -1278,7 +1282,8 @@ namespace ExtendedBuildingWidth
         {
             if (   !TryGetRecordByScreenElementName(source.name, out var record)
                 || !int.TryParse(text, out var middleWidthCandidate)
-                || record.FillingStyle == FillingStyle.Repeat && middleWidthCandidate < MinMiddleWidthAllowedForRepeatFillingStyle
+                || record.FillingStyle == FillingStyle.Repeat
+                    && middleWidthCandidate < MinMiddleWidthAllowedForRepeatFillingStyle
                 )
             {
                 source.GetComponent<TMP_InputField>().text = record.MiddlePart_Width.ToString();
