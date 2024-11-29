@@ -29,7 +29,7 @@ namespace ExtendedBuildingWidth
 
                 try
                 {
-                    if (!DlcManager.IsDlcListValidForCurrentContent(config.GetDlcIds()))
+                    if (!DlcManager.IsDlcListValidForCurrentContent(config.GetRequiredDlcIds()))
                     {
                         continue;
                     }
@@ -197,6 +197,7 @@ namespace ExtendedBuildingWidth
         private static BuildingDef CreateDynamicDef(IBuildingConfig config, int width)
         {
             var originalDef = ConfigToBuildingDefMap[config];
+            var originalWidth = originalDef.WidthInCells;
 
             // Fields 'dynamicDef.PrefabID' and 'dynamicDef.WidthInCells' will be adjusted in Prefix of 'Patch_BuildingTemplates_CreateBuildingDef'
             Patch_BuildingTemplates_CreateBuildingDef.CreatingDynamicBuildingDefStarted = true;
@@ -204,6 +205,13 @@ namespace ExtendedBuildingWidth
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = true;
 
             BuildingDef dynamicDef = config.CreateBuildingDef();
+            var originalMass = originalDef.Mass;
+            var dynamicMass = new ValueArray<float>(originalMass.Length).Values;
+            for (int i = 0; i <= originalMass.Length - 1; i++)
+            {
+                dynamicMass[i] = originalMass[i] / (float)originalWidth * (float)width;
+            }
+            dynamicDef.Mass = dynamicMass;
 
             Patch_GeneratedBuildings_RegisterWithOverlay.CreatingDynamicBuildingDefStarted = false;
             Patch_BuildingTemplates_CreateBuildingDef.NewWidthForDynamicBuildingDef = 0;
@@ -226,7 +234,7 @@ namespace ExtendedBuildingWidth
             // Exception is - assigning of 'configTable[config] = dynamicDef' is cropped because obviously it will break the mapping of the original 'BuildingDef'
             // and also verification for 'NonBuildableBuildings' is cropped as it is unnecessary for dynamic buildings.
             // ---
-            dynamicDef.RequiredDlcIds = config.GetDlcIds();
+            dynamicDef.RequiredDlcIds = config.GetRequiredDlcIds();
             var baseTemplate = Traverse.Create(BuildingConfigManager.Instance).Field("baseTemplate").GetValue() as UnityEngine.GameObject;
             UnityEngine.GameObject gameObject = UnityEngine.Object.Instantiate<UnityEngine.GameObject>(baseTemplate);
             UnityEngine.Object.DontDestroyOnLoad(gameObject);

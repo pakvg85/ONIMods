@@ -20,25 +20,10 @@ namespace ExtendedBuildingWidth
             if (CreatingDynamicBuildingDefStarted)
             {
                 int originalWidth = width;
+                string originalId = id;
                 width = NewWidthForDynamicBuildingDef;
-                id = DynamicBuildingsManager.GetDynamicName(id, width);
+                id = DynamicBuildingsManager.GetDynamicName(originalId, width);
                 Patch_GeneratedBuildings_RegisterWithOverlay.DynamicallyGeneratedPrefabId = id;
-
-                // Adjust building mass.
-                // In 'GasConduitBridgeConfig' field 'float[] tier' is assigned via reference from 'BUILDINGS.CONSTRUCTION_MASS_KG.TIER1'
-                // and later is passed to 'CreateBuildingDef' also by reference.
-                // As a result, changing contents of 'construction_mass' will affect 'BUILDINGS.CONSTRUCTION_MASS_KG.TIER1'.
-                // To avoid this, we have to:
-                // 1) keep original reference to construction_mass
-                var originalConstruction_mass = construction_mass;
-                // 2) create new instance of type float[] and change its contents according to our needs
-                construction_mass = new ValueArray<float>(construction_mass.Length).Values;
-                for (int i = 0; i <= originalConstruction_mass.Length - 1; i++)
-                {
-                    construction_mass[i] = originalConstruction_mass[i] / (float)originalWidth * (float)width;
-                }
-                // 3) restore original reference of construction_mass in Postfix after all calculations with construction_mass are done
-                __state = originalConstruction_mass;
             }
         }
 
@@ -46,8 +31,35 @@ namespace ExtendedBuildingWidth
         {
             if (CreatingDynamicBuildingDefStarted)
             {
-                construction_mass = __state;
+                CreatingDynamicBuildingDefStarted = false;
+            }
+        }
+    }
 
+    [HarmonyPatch(typeof(GeneratedBuildings), "RegisterWithOverlay")]
+    public class Patch_GeneratedBuildings_RegisterWithOverlay
+    {
+        public static bool CreatingDynamicBuildingDefStarted = false;
+        public static string DynamicallyGeneratedPrefabId = string.Empty;
+
+        public static void Prefix(HashSet<Tag> overlay_tags, ref string id)
+        {
+            if (CreatingDynamicBuildingDefStarted)
+            {
+                // Call of 'RegisterWithOverlay' makes buildings fully white when appropriate overlay is selected.
+                // Different implementations of 'IBuildingConfig' call this method differently with the 2nd parameter (id).
+                // Some call it with hardcoded string value, some - with 'PrefabID', some - with 'ID', etc.
+                // For dynamic buildings it is crucial for visualization to call this method with correct 'PrefabID'
+                // that is adjusted in 'Patch_BuildingTemplates_CreateBuildingDef'.
+                id = DynamicallyGeneratedPrefabId;
+            }
+        }
+
+        public static void Postfix()
+        {
+            if (CreatingDynamicBuildingDefStarted)
+            {
+                DynamicallyGeneratedPrefabId = string.Empty;
                 CreatingDynamicBuildingDefStarted = false;
             }
         }
@@ -90,35 +102,6 @@ namespace ExtendedBuildingWidth
         public static void Postfix(List<Type> types)
         {
             DynamicBuildingsManager.RegisterDynamicBuildings_For_ExtendableConfigSettings();
-        }
-    }
-
-    [HarmonyPatch(typeof(GeneratedBuildings), "RegisterWithOverlay")]
-    public class Patch_GeneratedBuildings_RegisterWithOverlay
-    {
-        public static bool CreatingDynamicBuildingDefStarted = false;
-        public static string DynamicallyGeneratedPrefabId = string.Empty;
-
-        public static void Prefix(HashSet<Tag> overlay_tags, ref string id)
-        {
-            if (CreatingDynamicBuildingDefStarted)
-            {
-                // Call of 'RegisterWithOverlay' makes buildings fully white when appropriate overlay is selected.
-                // Different implementations of 'IBuildingConfig' call this method differently with the 2nd parameter (id).
-                // Some call it with hardcoded string value, some - with 'PrefabID', some - with 'ID', etc.
-                // For dynamic buildings it is crucial for visualization to call this method with correct 'PrefabID'
-                // that is adjusted in 'Patch_BuildingTemplates_CreateBuildingDef'.
-                id = DynamicallyGeneratedPrefabId;
-            }
-        }
-
-        public static void Postfix()
-        {
-            if (CreatingDynamicBuildingDefStarted)
-            {
-                DynamicallyGeneratedPrefabId = string.Empty;
-                CreatingDynamicBuildingDefStarted = false;
-            }
         }
     }
 

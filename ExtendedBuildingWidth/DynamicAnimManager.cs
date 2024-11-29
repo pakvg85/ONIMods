@@ -662,7 +662,6 @@ namespace ExtendedBuildingWidth
                 var tuple = System.Tuple.Create(origFrameElement.symbol, origFrameElement.frame);
                 bool isSymbolFrameInstanceExist = tupleToNewFramesMap.TryGetValue(tuple, out newSymbolFrames);
                 if (   !isSymbolFrameInstanceExist
-                    && origAnimName == "heavywatttile_conductive_kanim"
                     && origFrameElement.symbol.ToString() == "outlets"
                     && origFrameElement.frame == 1
                     )
