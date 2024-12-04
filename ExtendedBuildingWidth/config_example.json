@@ -1,8 +1,11 @@
 {"ExtendableConfigSettings":"[
-{\"ConfigName\":\"GasConduitBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
-{\"ConfigName\":\"LiquidConduitBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
-{\"ConfigName\":\"High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
-{\"ConfigName\":\"High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
-{\"ConfigName\":\"LogicWireBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
-{\"ConfigName\":\"LogicRibbonBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12}
+{\"ConfigName\":\"GasConduitBridgeConfig\",                                                          \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"LiquidConduitBridgeConfig\",                                                       \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"SolidConduitBridgeConfig\",                                                        \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"LogicWireBridgeConfig\",                                                           \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"LogicRibbonBridgeConfig\",                                                         \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"WireBridgeConfig\",                                                                \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"WireRefinedBridgeConfig\",                                                         \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"High_Pressure_Applications.BuildingConfigs.HighPressureGasConduitBridgeConfig\",   \"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12},
+{\"ConfigName\":\"High_Pressure_Applications.BuildingConfigs.HighPressureLiquidConduitBridgeConfig\",\"MinWidth\":2,\"MaxWidth\":16,\"AnimStretchModifier\":1.12}
 ]"}
