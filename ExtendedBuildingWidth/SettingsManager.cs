@@ -55,12 +55,21 @@ namespace ExtendedBuildingWidth
                 {
                     File.Delete(fullFileName);
                 }
-
-                using (StreamWriter fs = File.CreateText(fullFileName))
+                if (!Directory.Exists(Get_ConfigJson_Path()))
                 {
-                    foreach (var line in AllBuildingsMap.Values)
+                    Directory.CreateDirectory(Get_ConfigJson_Path());
+                }
+
+                using (StreamWriter fileStream = File.CreateText(fullFileName))
+                {
+                    foreach (var buildingInfo in AllBuildingsMap.Values)
                     {
-                        fs.WriteLine(line.ConfigName + "\t" + line.Caption + "\t" + line.Desc);
+                        var fileLine = buildingInfo.ConfigName + "\t" + buildingInfo.Caption + "\t" + buildingInfo.Desc;
+                        if (DynamicBuildingsManager.ConfigNameToAnimNameMap.TryGetValue(buildingInfo.ConfigName, out var animName))
+                        {
+                            fileLine += "\t" + animName;
+                        }
+                        fileStream.WriteLine(fileLine);
                     }
                 }
 
@@ -508,6 +517,175 @@ namespace ExtendedBuildingWidth
             };
             result.Add(item);
 
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "place",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 65,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "tile_fg",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 38,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "output",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 1,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftLeft,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "input_frame",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 112,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftRight,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "input_cross",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 100,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftRight,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeTileConfig",
+                SymbolName = "input_center",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 55,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftRight,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "place",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 137,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "tile_fg",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 38,
+                MiddlePart_Width = 48,
+                FillingMethod = FillingStyle.Repeat,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "redirector_target",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 1,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftRight,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "input_frame",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 110,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftLeft,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "input_cross",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 100,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftLeft,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "input_center",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 55,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftLeft,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
+            item = new AnimSplittingSettings()
+            {
+                ConfigName = "HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig",
+                SymbolName = "base",
+                FrameIndex = Dialog_EditAnimSlicingSettings.JsonValueEmpty,
+                IsActive = true,
+                MiddlePart_X = 110,
+                MiddlePart_Width = 1,
+                FillingMethod = FillingStyle.ShiftLeft,
+                DoFlipEverySecondIteration = false
+            };
+            result.Add(item);
+
             return result;
         }
 
@@ -525,6 +703,8 @@ namespace ExtendedBuildingWidth
             result.Add("LogicRibbonBridgeConfig", "logic_ribbon_bridge_kanim");
             result.Add("WireBridgeHighWattageConfig", "heavywatttile_kanim");
             result.Add("WireRefinedBridgeHighWattageConfig", "heavywatttile_conductive_kanim");
+            result.Add("HEPBridgeTileConfig", "radbolt_joint_plate_kanim");
+            result.Add("HEPBridgeInsulationTile.HEPBridgeInsulationTileConfig", "radbolt_joint_plate_insulated_kanim");
 
             return result;
         }

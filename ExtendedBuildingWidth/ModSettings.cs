@@ -104,8 +104,12 @@ namespace ExtendedBuildingWidth
         }
 
         /// <summary>
-        /// This dictionary contains records that are only relevant to 'AnimSplittingSettings'.
-        /// Do not confuse with 'DynamicBuildingsManager.ConfigNameToAnimNameMap'.
+        /// This dictionary contains mappings for config names to match their anim names (ex: 'GasConduitBridgeConfig' - 'utilitygasbridge_kanim').
+        /// Important note:
+        /// This dict contains only config names that exist in 'Visual Output Seetings' list.
+        /// 'DynamicBuildingsManager.ConfigNameToAnimNameMap' has similar purpose, but is generated AFTER the game recources are loaded.
+        /// We don't have access to these game recources in 'DynamicAnimManager.AddDynamicAnimsNames_To_ModLoadedKAnims',
+        /// so we have to maintain mappings in 'config.json'.
         /// </summary>
         public Dictionary<string, string> GetConfigNameToAnimNameMap() => JsonConvert.DeserializeObject<Dictionary<string, string>>(ConfigNameToAnimNameMap);
 

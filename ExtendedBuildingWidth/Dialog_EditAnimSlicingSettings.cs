@@ -223,6 +223,11 @@ namespace ExtendedBuildingWidth
             ActiveRecordInitialized = true;
             ActiveRecordId = GetRecordId(settings_Item);
 
+            if (!DynamicBuildingsManager.ConfigMap.ContainsKey(settings_Item.ConfigName))
+            {
+                return;
+            }
+
             var symbolName = SymbolHashOrFirstSymbolFromConfig(settings_Item.SymbolName, settings_Item.ConfigName);
             var frameIndex = FrameIndexOrFirstFrameFromConfig(settings_Item.FrameIndex, settings_Item.ConfigName);
             var settings_Internal = DataMapper.GuiToInternal(settings_Item, symbolName, frameIndex);

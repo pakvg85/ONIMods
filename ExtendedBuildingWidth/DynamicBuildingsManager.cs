@@ -499,7 +499,7 @@ namespace ExtendedBuildingWidth
             Traverse.Create(PlanScreen.Instance).Property("LastSelectedBuilding").SetValue(building);
         }
 
-        /// <summary>
+        /*/// <summary>
         /// Simulate 'OnSelectBuilding' with some parts thrown out. Does not work
         /// </summary>
         private static void PlanScreen_OnSelectBuilding_Ripoff(BuildingDef dynamicDef, string facadeID = null)
@@ -548,7 +548,7 @@ namespace ExtendedBuildingWidth
             PlanScreen.Instance.OnSelectBuilding(selectedBuildingGameObject, dynamicDef, null);
             ////dynamicDef.PrefabID = dynamicDefPrefabIDSave;
             dynamicDef.Tag = dynamicDefTagSave;
-        }
+        }*/
 
         public static string GetDynamicName(string origName, int width) => origName + "_width" + width.ToString();
 
