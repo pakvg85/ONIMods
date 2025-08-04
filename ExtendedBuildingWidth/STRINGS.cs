@@ -20,8 +20,10 @@
 
             public class DIALOG_COMMON_STR
             {
-                public static LocString BUTTON_OK = "OK";
+                public static LocString BUTTON_OK = "Confirm and continue";
+                public static LocString BUTTON_OK_TOOLTIP = "Confirm changes, and return to previous screen to continue editing";
                 public static LocString BUTTON_CANCEL = "CANCEL";
+                public static LocString BUTTON_CANCEL_TOOLTIP = "Discard all changes made on this screen";
                 public static LocString CHECKBOX_SHOWTECHNAMES = "Show tech names";
                 public static LocString CHECKBOX_SHOWTECHNAMES_TOOLTIP1 = "";
                 public static LocString CHECKBOX_SHOWTECHNAMES_TOOLTIP2 = "";

@@ -83,8 +83,8 @@ namespace ExtendedBuildingWidth
                 Size = new Vector2 { x = 1280, y = 900 },
                 MaxSize = new Vector2 { x = 1280, y = 900 },
                 SortKey = 200.0f
-            }.AddButton(DialogOption_Ok, DIALOG_COMMON_STR.BUTTON_OK, null, PUITuning.Colors.ButtonPinkStyle)
-            .AddButton(DialogOption_Cancel, DIALOG_COMMON_STR.BUTTON_CANCEL, null, PUITuning.Colors.ButtonBlueStyle);
+            }.AddButton(DialogOption_Ok, DIALOG_COMMON_STR.BUTTON_OK, DIALOG_COMMON_STR.BUTTON_OK_TOOLTIP, PUITuning.Colors.ButtonPinkStyle)
+            .AddButton(DialogOption_Cancel, DIALOG_COMMON_STR.BUTTON_CANCEL, DIALOG_COMMON_STR.BUTTON_CANCEL_TOOLTIP, PUITuning.Colors.ButtonBlueStyle);
 
             GenerateInitialData();
 
